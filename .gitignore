@@ -1,0 +1,5 @@
+#
+# .gitignore - @tccl/graph-worker
+#
+
+/node_modules/
