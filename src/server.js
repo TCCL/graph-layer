@@ -18,7 +18,8 @@ class Server {
             return;
         }
 
-        this.server = this.app.listen(this.config.port,this.config.host);
+        const [ port, host ] = this.config.get("port","host");
+        this.server = this.app.listen(port,host);
     }
 
     stop() {

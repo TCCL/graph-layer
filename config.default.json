@@ -2,10 +2,9 @@
     /**
      * Configure applications that will utilize the graph-layer instance.
      */
-    "apps": [
+    "apps": {
         // This entry is for the test application executed via 'npm run test'
-        {
-            "id": "test-app",
+        "test-app": {
             "name": "Test Application",
 
             /**
@@ -14,11 +13,11 @@
             "client_id": "",
             "client_secret": "",
             "tenant_id": "",
-            "authority": "",
+            "cloud_id": "https://login.microsoftonline.com",
 
             "redirectUri": "http://localhost:8000/callback"
         }
-    ],
+    },
 
     /**
      * The INET configuration used by the worker process to accept incoming HTTP

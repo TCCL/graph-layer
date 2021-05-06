@@ -6,9 +6,16 @@
 
 const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
+const { format } = require("util");
 
 const { Config } = require("./config");
 const { Server } = require("./server");
+
+global.ErrorF = class extends Error {
+    constructor(fmt,...args) {
+        super(format(fmt,...args));
+    }
+};
 
 function start(argv) {
     const config = new Config();
