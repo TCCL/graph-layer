@@ -5,15 +5,15 @@
  */
 
 const fs = require("fs");
-const { promisify: p } = require("util");
+const { promisify: p, format } = require("util");
 const commentJSON = require("comment-json");
 
 const { Storage } = require("./storage");
 
-class Config {
-    constructor() {
+class ConfigObject {
+    constructor(context,...parts) {
+        this.context = format(context,...parts);
         this.cfg = {};
-        this.storage = null;
     }
 
     get(...keys) {
@@ -21,17 +21,52 @@ class Config {
             return 0;
         }
         if (keys.length == 1) {
-            return this.cfg[keys[0]];
+            if (keys[0] in this.cfg) {
+                return this.cfg[keys[0]];
+            }
+
+            throw new ErrorF("%s.%s is not defined",this.context,keys[0]);
         }
 
-        return keys.map((key) => this.cfg[key]);
+        return keys.map((key) => {
+            if (!(key in this.cfg)) {
+                throw new ErrorF("%s.%s is not defined",this.context,key);
+            }
+
+            return this.cfg[key];
+        });
+    }
+
+    assign(vs) {
+        for (const key in vs) {
+            if (typeof vs[key] === "object" && vs[key] !== null) {
+                this.cfg[key] = new ConfigObject("%s.%s",this.context,key);
+                this.cfg[key].assign(vs[key]);
+            }
+            else {
+                this.cfg[key] = vs[key];
+            }
+        }
+    }
+}
+
+class Config {
+    constructor() {
+        this.cfg = new ConfigObject("[Config]");
+        this.storage = null;
+    }
+
+    get(...keys) {
+        return this.cfg.get(...keys);
     }
 
     async load(configFile) {
         const data = await p(fs.readFile)(configFile,"utf8");
         const cfg = commentJSON.parse(data,null,false);
 
-        Object.assign(this.cfg,cfg);
+        this.cfg.assign(cfg);
+
+        return this;
     }
 
     getStorage() {
