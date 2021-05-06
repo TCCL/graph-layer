@@ -1,5 +1,5 @@
 /**
  * test.js
  *
- * @tccl/graph-worker/test
+ * @tccl/graph-layer/test
  */

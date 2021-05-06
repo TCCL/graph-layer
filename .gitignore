@@ -1,5 +1,7 @@
 #
-# .gitignore - @tccl/graph-worker
+# .gitignore - @tccl/graph-layer
 #
+
+/config.json
 
 /node_modules/
