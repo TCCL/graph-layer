@@ -5,6 +5,7 @@
  */
 
 const net = require("net");
+const crypto = require("crypto");
 const { format } = require("util");
 const { v4: generateUUID } = require("uuid");
 const IPCIDR = require("ip-cidr");
@@ -12,14 +13,12 @@ const IPCIDR = require("ip-cidr");
 const { JsonMessage } = require("./helpers");
 
 class ConnectionHandler {
-    constructor(sock,tokenEndpoint) {
+    constructor(sock,endpoint) {
         sock.setEncoding("utf8");
         sock.setTimeout(3000);
         this.sock = sock;
 
-        this.tokenEndpoint = tokenEndpoint;
-        this.manager = tokenEndpoint.manager;
-
+        this.endpoint = endpoint;
         this.incoming = new JsonMessage();
     }
 
@@ -39,10 +38,13 @@ class ConnectionHandler {
 
     processMessage(message) {
         if (message.action == "auth") {
-            this.tokenEndpoint.doAuth(this,message);
+            this.endpoint.doAuth(this,message);
         }
         else if (message.action == "callback") {
-
+            this.endpoint.doCallback(this,message);
+        }
+        else {
+            this.writeError("Message is not understood");
         }
     }
 
@@ -125,7 +127,8 @@ class TokenEndpoint extends net.Server {
             return;
         }
 
-        const app = this.config.get("appsMap").get(message.appId);
+        // Get application instance.
+        const { cca, app } = this.config.getApplication(message.appId);
         if (!app) {
             handler.writeError(
                 "No such application having ID '%s'",
@@ -134,20 +137,95 @@ class TokenEndpoint extends net.Server {
             return;
         }
 
+        // Create session.
+
         const timeout = Math.round(Date.now() / 1000) + 3600;
         const sessionId = generateUUID();
 
         this.sessions.set(sessionId,{
             state: "pending",
             sessionId,
-            timeout
+            timeout,
+            appId: message.appId
         });
 
-        // test
-        handler.writeMessage("redirect",{
-            sessionId,
-            timeout,
-            uri: app.redirectUri
+        // Get the URL used to authenticate the user.
+
+        const params = {
+            scopes: app.userScopes,
+            redirectUri: app.redirectUri
+        };
+
+        cca.getAuthCodeUrl(params).then((url) => {
+            handler.writeMessage("redirect",{
+                sessionId,
+                timeout,
+                uri: url
+            });
+        }).catch((err) => {
+            handler.writeError("Failed to initiate authentication");
+        });
+    }
+
+    doCallback(handler,message) {
+        console.log(message);
+
+        if (!message.appId && typeof message.appId !== "string") {
+            handler.writeError("Protocol error: appId");
+            return;
+        }
+
+        if (!message.sessionId && typeof message.sessionId !== "string") {
+            handler.writeError("Protocol error: sessionId");
+            return;
+        }
+
+        if (!message.code && typeof message.code !== "string") {
+            handler.writeError("Protocol error: code");
+            return;
+        }
+
+        const session = this.sessions.get(message.sessionId);
+        if (!session) {
+            handler.writeError("Invalid session");
+            return;
+        }
+
+        if (session.appId != message.appId) {
+            handler.writeError("Invalid application");
+            return;
+        }
+
+        // Get application instance.
+        const { cca, app } = this.config.getApplication(session.appId);
+        if (!app) {
+            handler.writeError(
+                "No such application having ID '%s'",
+                session.appId
+            );
+            return;
+        }
+
+        const tokenRequest = {
+            code: message.code,
+            scopes: app.userScopes,
+            redirectUri: app.redirectUri
+        };
+
+        cca.acquireTokenByCode(tokenRequest).then((response) => {
+            console.log(response);
+
+            this.sessions.delete(session.sessionId);
+
+            const tokenId = crypto.randomBytes(32).toString("base64");
+            this.manager.set(tokenId,response);
+
+            handler.writeMessage("complete",{
+                sessionId: tokenId
+            });
+
+        }).catch((err) => {
+            handler.writeError("Failed to acquire access token");
         });
     }
 }
@@ -165,9 +243,9 @@ class TokenManager {
 
     }
 
-    set(appId,tokenId,value) {
+    set(id,token) {
 
-    }    
+    }
 }
 
 module.exports = {

@@ -10,12 +10,24 @@
             "name": "Test Application",
 
             /**
+             * Cookie that contains the graph layer session ID.
+             */
+            "cookie": "GRAPH_LAYER_SESSID",
+
+            /**
              * Microsoft Graph API credentials.
              */
             "client_id": "",
             "client_secret": "",
             "tenant_id": "",
             "cloud_id": "https://login.microsoftonline.com",
+
+            /**
+             * The scopes to request for access tokens associated with user identities.
+             */
+            "userScopes": [
+                "user.read"
+            ],
 
             "redirectUri": "http://localhost:8000/callback"
         }

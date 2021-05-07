@@ -7,6 +7,7 @@
 const fs = require("fs");
 const { promisify: p, format } = require("util");
 const commentJSON = require("comment-json");
+const msal = require("@azure/msal-node");
 
 const { Storage } = require("./storage");
 
@@ -54,6 +55,7 @@ class Config {
     constructor() {
         this.cfg = new ConfigObject("[Config]");
         this.storage = null;
+        this.msalApps = new Map();
     }
 
     get(...keys) {
@@ -61,6 +63,13 @@ class Config {
     }
 
     async load(configFile) {
+        if (this.storage) {
+            this.storage.close();
+            this.storage = null;
+        }
+        this.msalApps.clear();
+        this.cfg = new ConfigObject(configFile);
+
         const data = await p(fs.readFile)(configFile,"utf8");
         const cfg = commentJSON.parse(data,null,false);
 
@@ -89,6 +98,34 @@ class Config {
         this.storage = new Storage(databaseFile);
 
         return this.storage;
+    }
+
+    getApplication(appId) {
+        let payload = this.msalApps.get(appId);
+        if (payload) {
+            return payload
+        }
+
+        const app = this.get("appsMap").get(appId);
+        if (!app) {
+            return false;
+        }
+
+        const config = {
+            auth: {
+                clientId: app.client_id,
+                authority: format("%s/%s",app.cloud_id,app.tenant_id),
+                clientSecret: app.client_secret
+            }
+        };
+
+        payload = {
+            cca: new msal.ConfidentialClientApplication(config),
+            app
+        };
+        this.msalApps.set(appId,payload);
+
+        return payload;
     }
 }
 

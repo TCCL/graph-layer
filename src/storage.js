@@ -19,8 +19,8 @@ const SCHEMA = [
     },
     {
         sql: [
-            "CREATE TABLE token (app_id TEXT,token_id TEXT,value BLOB,is_user SMALLINT)",
-            "CREATE UNIQUE INDEX idx_token_id ON token (app_id,token_id)"
+            "CREATE TABLE token (token_id TEXT,value BLOB,app_id TEXT,is_user SMALLINT)",
+            "CREATE UNIQUE INDEX idx_token_id ON token (token_id)"
         ],
         updates: {},
         intro: 1
@@ -31,6 +31,11 @@ class Storage {
     constructor(databaseFile) {
         this.database = sqlite3(databaseFile);
         this._checkSchemas();
+    }
+
+    close() {
+        this.database.close();
+        this.database = null;
     }
 
     getConfig(key) {
