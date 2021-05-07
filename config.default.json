@@ -2,9 +2,11 @@
     /**
      * Configure applications that will utilize the graph-layer instance.
      */
-    "apps": {
-        // This entry is for the test application executed via 'npm run test'
-        "test-app": {
+    "apps": [
+        // The first entry is used by the test application executed via 'npm run
+        // test'.
+        {
+            "id": "test-app",
             "name": "Test Application",
 
             /**
@@ -17,14 +19,14 @@
 
             "redirectUri": "http://localhost:8000/callback"
         }
-    },
+    ],
 
     /**
      * The INET configuration used by the worker process to accept incoming HTTP
      * connections.
      */
     "host": "0.0.0.0",
-    "port": 7000,
+    "port": 8000,
 
     /**
      * Configure the token endpoint.
@@ -34,7 +36,7 @@
          * The INET configuration for the endpoint.
          */
         "host": "0.0.0.0",
-        "port": 7080,
+        "port": 7000,
 
         /**
          * The list of IP addresses that are allowed to connect to the token endpoint. 

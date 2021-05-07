@@ -5,62 +5,41 @@
  */
 
 const net = require("net");
+const { format } = require("util");
 const { v4: generateUUID } = require("uuid");
 const IPCIDR = require("ip-cidr");
 
+const { JsonMessage } = require("./helpers");
+
 class ConnectionHandler {
-    constructor(sock,manager) {
+    constructor(sock,tokenEndpoint) {
         sock.setEncoding("utf8");
-        this.id = generateUUID();
+        sock.setTimeout(3000);
         this.sock = sock;
-        this.manager = manager;
-        this.state = "initial";
-        this.buffer = "";
+
+        this.tokenEndpoint = tokenEndpoint;
+        this.manager = tokenEndpoint.manager;
+
+        this.incoming = new JsonMessage();
     }
 
     handle() {
         this.sock.on("data",(chunk) => {
-            this.buffer += chunk;
-            this.tryMessage();
+            if (this.incoming.receive(chunk)) {
+                const message = this.incoming.getMessage();
+                if (message === false) {
+                    this.writeError("Protocol error");
+                    return;
+                }
+
+                this.processMessage(message);
+            }
         });
     }
 
-    tryMessage() {
-        const index = this.buffer.indexOf("\n");
-        if (index < 0) {
-            return;
-        }
-
-        const messageRaw = this.buffer.slice(0,index).trim();
-        this.buffer = this.buffer.slice(index+1);
-
-        if (messageRaw.length == 0) {
-            return;
-        }
-
-        try {
-            const message = JSON.parse(messageRaw);
-            if (typeof message !== "object" || message === null) {
-                throw new Error("Invalid message");
-            }
-
-            this.processMessage(message);
-
-        } catch (err) {
-            this.writeError("Invalid message");
-        }
-    }
-
     processMessage(message) {
-        console.log(message);
-
-        if (message.action != "auth" && message.id != this.id) {
-            this.writeError("ID mismatch");
-            return;
-        }
-
         if (message.action == "auth") {
-
+            this.tokenEndpoint.doAuth(this,message);
         }
         else if (message.action == "callback") {
 
@@ -69,17 +48,15 @@ class ConnectionHandler {
 
     writeMessage(type,value) {
         const payload = {
-            id: this.id,
             type,
-            state: this.state,
             value
         };
 
-        this.sock.write(JSON.stringify(payload));
+        this.sock.write(JSON.stringify(payload) + "\n");
     }
 
-    writeError(message) {
-        this.writeMessage("error",message);
+    writeError(message,...args) {
+        this.writeMessage("error",format(message,...args));
     }
 }
 
@@ -89,8 +66,11 @@ class ConnectionHandler {
 class TokenEndpoint extends net.Server {
     constructor(manager) {
         super();
+
         this.config = manager.config;
         this.manager = manager;
+
+        this.sessions = new Map();
     }
 
     start() {
@@ -127,7 +107,7 @@ class TokenEndpoint extends net.Server {
                 }
             }
 
-            const handler = new ConnectionHandler(sock,this.manager);
+            const handler = new ConnectionHandler(sock,this);
             handler.handle();
         });
 
@@ -137,6 +117,38 @@ class TokenEndpoint extends net.Server {
     stop() {
         this.removeAllListeners("connection");
         this.close();
+    }
+
+    doAuth(handler,message) {
+        if (!message.appId && typeof message.appId !== "string") {
+            handler.writeError("Protocol error: appId");
+            return;
+        }
+
+        const app = this.config.get("appsMap").get(message.appId);
+        if (!app) {
+            handler.writeError(
+                "No such application having ID '%s'",
+                message.appId
+            );
+            return;
+        }
+
+        const timeout = Math.round(Date.now() / 1000) + 3600;
+        const sessionId = generateUUID();
+
+        this.sessions.set(sessionId,{
+            state: "pending",
+            sessionId,
+            timeout
+        });
+
+        // test
+        handler.writeMessage("redirect",{
+            sessionId,
+            timeout,
+            uri: app.redirectUri
+        });
     }
 }
 

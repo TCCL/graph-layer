@@ -39,7 +39,7 @@ class ConfigObject {
 
     assign(vs) {
         for (const key in vs) {
-            if (typeof vs[key] === "object" && vs[key] !== null) {
+            if (vs[key] !== null && vs[key].constructor === Object) {
                 this.cfg[key] = new ConfigObject("%s.%s",this.context,key);
                 this.cfg[key].assign(vs[key]);
             }
@@ -63,6 +63,13 @@ class Config {
     async load(configFile) {
         const data = await p(fs.readFile)(configFile,"utf8");
         const cfg = commentJSON.parse(data,null,false);
+
+        // Create map for looking up apps entries by id.
+        if (cfg.apps && Array.isArray(cfg.apps)) {
+            const map = new Map();
+            cfg.apps.forEach((ent) => map.set(ent.id,ent));
+            cfg.appsMap = map;
+        }
 
         this.cfg.assign(cfg);
 
