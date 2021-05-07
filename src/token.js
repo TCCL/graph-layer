@@ -168,8 +168,6 @@ class TokenEndpoint extends net.Server {
     }
 
     doCallback(handler,message) {
-        console.log(message);
-
         if (!message.appId && typeof message.appId !== "string") {
             handler.writeError("Protocol error: appId");
             return;
@@ -213,8 +211,6 @@ class TokenEndpoint extends net.Server {
         };
 
         cca.acquireTokenByCode(tokenRequest).then((response) => {
-            console.log(response);
-
             this.sessions.delete(session.sessionId);
 
             const tokenId = crypto.randomBytes(32).toString("base64");

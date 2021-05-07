@@ -7,6 +7,7 @@
 const net = require("net");
 const path = require("path");
 const express = require("express");
+const cookieParser = require("cookie-parser");
 const { format } = require("util");
 
 const { Config } = require("../src/config");
@@ -20,13 +21,8 @@ function log(message,...args) {
 }
 
 function get_auth(req,res) {
-    const app = this.get("apps")[0]; // use first
-    const [ port, host ] = this.get("tokenEndpoint").get("port","host");
-
+    const { sock, app } = connect();
     const incoming = new JsonMessage();
-    const sock = new net.Socket();
-    sock.setEncoding("utf8");
-    sock.connect(port,host);
 
     sock.on("connect",() => {
         // Begin login sequence.
@@ -47,6 +43,7 @@ function get_auth(req,res) {
             }
 
             if (message.type == "redirect") {
+                res.cookie("GRAPH_LAYER_AUTH_SESSID",message.value.sessionId);
                 res.redirect(message.value.uri);
             }
             else if (message.type == "error") {
@@ -62,23 +59,92 @@ function get_auth(req,res) {
 }
 
 function get_callback(req,res) {
-    res.send("Hello, World");
+    const code = req.query.code;
+    const sessionId = req.cookies.GRAPH_LAYER_AUTH_SESSID;
+
+    if (!code) {
+        res.status(500).send("<h2>Didn't get an authorization code</h2>");
+        return;
+    }
+
+    if (!sessionId) {
+        res.status(500).send("<h2>Invalid session</h2>");
+        return;
+    }
+
+    const { sock, app } = connect();
+    const incoming = new JsonMessage();
+
+    sock.on("connect",() => {
+        // Begin login sequence.
+        const message = {
+            action: "callback",
+            appId: app.id,
+            sessionId,
+            code
+        };
+
+        sock.write(JSON.stringify(message) + "\n");
+    });
+
+    sock.on("data",(chunk) => {
+        if (incoming.receive(chunk)) {
+            const message = incoming.getMessage();
+            if (message === false) {
+                log("[error]: invalid protocol message");
+                return;
+            }
+
+            if (message.type == "complete") {
+                res.clearCookie("GRAPH_LAYER_AUTH_SESSID");
+                res.cookie("GRAPH_LAYER_SESSID",message.value.sessionId);
+
+                res.send(
+                    format(
+                        "<p>Session ID: <code>%s</code></p>"
+                            + "<p><a href=\"/\">Continue</a></p>",
+                        message.value.sessionId
+                    )
+                );
+            }
+            else if (message.type == "error") {
+                log("[error-from-server]: %s",message.value);
+            }
+            else {
+                log("[error]: cannot handle message: %s",JSON.stringify(message));
+            }
+
+            sock.end();
+        }
+    });
 }
 
 function main(config) {
     const server = new Server(config);
 
+    server.app.use(cookieParser());
     server.app.use(express.static(path.join(__dirname,"public")));
     server.start();
 
-    server.app.get('/auth',get_auth.bind(config));
-    server.app.get('/callback',get_callback.bind(config));
+    server.app.get('/auth',get_auth);
+    server.app.get('/callback',get_callback);
 
     const stop = server.stop.bind(server);
 
     process.once("SIGINT",stop);
     process.once("SIGQUIT",stop);
     process.once("SIGTERM",stop);
+}
+
+function connect() {
+    const app = config.get("apps")[0]; // use first
+    const [ port, host ] = config.get("tokenEndpoint").get("port","host");
+
+    const sock = new net.Socket();
+    sock.setEncoding("utf8");
+    sock.connect(port,host);
+
+    return { sock, app };
 }
 
 const config = new Config();
