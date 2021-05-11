@@ -163,6 +163,7 @@ class TokenEndpoint extends net.Server {
                 uri: url
             });
         }).catch((err) => {
+            console.error(err);
             handler.writeError("Failed to initiate authentication");
         });
     }
@@ -214,13 +215,14 @@ class TokenEndpoint extends net.Server {
             this.sessions.delete(session.sessionId);
 
             const tokenId = crypto.randomBytes(32).toString("base64");
-            this.manager.set(tokenId,response);
+            this.manager.set(tokenId,session.appId,true,response);
 
             handler.writeMessage("complete",{
                 sessionId: tokenId
             });
 
         }).catch((err) => {
+            console.error(err);
             handler.writeError("Failed to acquire access token");
         });
     }
@@ -236,11 +238,57 @@ class TokenManager {
     }
 
     get(id) {
+        const storage = this.config.getStorage();
 
+        const query =
+           `SELECT
+              value,
+              app_id AS appId,
+              is_user AS userId
+            FROM
+              token
+            WHERE
+              token_id = ?`;
+
+        const vars = [
+            id
+        ];
+
+        let token;
+        const { value, appId, isUser } = storage.get(query,vars);
+
+        try {
+            token = JSON.parse(value);
+        } catch (err) {
+            throw new ErrorF("Cannot parse token for '%s'",id);
+        }
+
+        return { appId, isUser, token };
     }
 
-    set(id,token) {
+    set(id,appId,isUser,token) {
+        const storage = this.config.getStorage();
+        const isUserValue = isUser ? 1 : 0;
 
+        const query =
+           `INSERT INTO token (
+              token_id,
+              value,
+              app_id,
+              is_user
+            )
+            VALUES (
+              ?,?,?,?
+            )`;
+
+        const vars = [
+            id,
+            appId,
+            isUserValue,
+            JSON.stringify(token)
+        ];
+
+        storage.run(query,vars);
     }
 }
 

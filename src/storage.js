@@ -38,6 +38,30 @@ class Storage {
         this.database = null;
     }
 
+    run(query,vars) {
+        const stmt = this.database.prepare(query);
+
+        return stmt.run(vars);
+    }
+
+    get(query,vars) {
+        const stmt = this.database.prepare(query);
+
+        return stmt.get(vars);
+    }
+
+    all(query,vars) {
+        const stmt = this.database.prepare(query);
+
+        return stmt.all(vars);
+    }
+
+    iterate(query,vars) {
+        const stmt = this.database.prepare(query);
+
+        return stmt.iterate(vars);
+    }
+
     getConfig(key) {
         const select = this.database.prepare(
             "SELECT value, is_serialized FROM config WHERE key = ?"
