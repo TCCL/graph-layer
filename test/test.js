@@ -4,6 +4,7 @@
  * @tccl/graph-layer/test
  */
 
+const ejs = require("ejs");
 const net = require("net");
 const path = require("path");
 const express = require("express");
@@ -18,7 +19,50 @@ const { JsonMessage } = require("../src/helpers");
 const CONFIG_FILE = process.env.GRAPH_LAYER_TEST_CONFIG_FILE || "./config.json";
 
 function log(message,...args) {
-    console.error("[test]: " + format(message,...args));
+    const printed = format(message,...args);
+    console.error("[test]: " + printed);
+    return printed;
+}
+
+function render(res,contentName,vars,cb) {
+    const options = {
+        root: "./test/templates",
+        views: ["./test/templates"]
+    };
+
+    const content = contentName + '.template';
+    const data = {
+        content,
+        vars: vars || {}
+    };
+
+    ejs.renderFile("./test/templates/base.template",data,options,(err,str) => {
+        if (err) {
+            let html = "";
+            html += "<h1>Error!</h1>";
+            html += "<h2>Cannot render template</h2>";
+            console.error(err);
+            res.status(500).send(html);
+            return;
+        }
+
+        res.send(str);
+        if (typeof cb === "function") {
+            cb();
+        }
+    });
+}
+
+function send_error(res,message,...args) {
+    const error = format(message,...args);
+    log("[error]: " + error);
+
+    res.status(500);
+    render(res,"error",{ error });
+}
+
+function get_index(req,res) {
+    render(res,"index");
 }
 
 function get_auth(req,res) {
@@ -39,7 +83,7 @@ function get_auth(req,res) {
         if (incoming.receive(chunk)) {
             const message = incoming.getMessage();
             if (message === false) {
-                log("[error]: invalid protocol message");
+                send_error(res,"Protocol Error: invalid protocol message");
                 return;
             }
 
@@ -48,10 +92,14 @@ function get_auth(req,res) {
                 res.redirect(message.value.uri);
             }
             else if (message.type == "error") {
-                log("[error-from-server]: %s",message.value);
+                send_error(res,"Operation Error: %s",message.value);
             }
             else {
-                log("[error]: cannot handle message: %s",JSON.stringify(message));
+                send_error(
+                    res,
+                    "Client Error: cannot handle message: %s",
+                    JSON.stringify(message)
+                );
             }
 
             sock.end();
@@ -64,12 +112,12 @@ function get_callback(req,res) {
     const sessionId = req.cookies.GRAPH_LAYER_AUTH_SESSID;
 
     if (!code) {
-        res.status(500).send("<h2>Didn't get an authorization code</h2>");
+        send_error(res,"Callback Error: Didn't get an authorization code");
         return;
     }
 
     if (!sessionId) {
-        res.status(500).send("<h2>Invalid session</h2>");
+        send_error(res,"Session Error: Invalid or missing session");
         return;
     }
 
@@ -100,19 +148,21 @@ function get_callback(req,res) {
                 res.clearCookie("GRAPH_LAYER_AUTH_SESSID");
                 res.cookie("GRAPH_LAYER_SESSID",message.value.sessionId);
 
-                res.send(
-                    format(
-                        "<p>Session ID: <code>%s</code></p>"
-                            + "<p><a href=\"/\">Continue</a></p>",
-                        message.value.sessionId
-                    )
+                render(
+                    res,
+                    "callback-message",
+                    { sessionId: message.value.sessionId }
                 );
             }
             else if (message.type == "error") {
-                log("[error-from-server]: %s",message.value);
+                send_error(res,"Operation Error: %s",message.value);
             }
             else {
-                log("[error]: cannot handle message: %s",JSON.stringify(message));
+                send_error(
+                    res,
+                    "Client Error: cannot handle message: %s",
+                    message.value
+                );
             }
 
             sock.end();
@@ -127,6 +177,7 @@ function main(config) {
     server.app.use(express.static(path.join(__dirname,"public")));
     server.start();
 
+    server.app.get('/',get_index);
     server.app.get('/auth',get_auth);
     server.app.get('/callback',get_callback);
 

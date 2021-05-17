@@ -1,0 +1,3 @@
+<h2 class="error">An error occurred on the server.</h2>
+<p>The server says: <%= error %></p>
+<p><small>Please check the console log for more information.</small></p>
