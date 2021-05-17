@@ -7,8 +7,8 @@
 const fs = require("fs");
 const { promisify: p, format } = require("util");
 const commentJSON = require("comment-json");
-const msal = require("@azure/msal-node");
 
+const { Application } = require("./application");
 const { Storage } = require("./storage");
 
 class ConfigObject {
@@ -55,7 +55,7 @@ class Config {
     constructor() {
         this.cfg = new ConfigObject("[Config]");
         this.storage = null;
-        this.msalApps = new Map();
+        this.apps = new Map();
     }
 
     get(...keys) {
@@ -67,7 +67,7 @@ class Config {
             this.storage.close();
             this.storage = null;
         }
-        this.msalApps.clear();
+        this.apps.clear();
         this.cfg = new ConfigObject(configFile);
 
         const data = await p(fs.readFile)(configFile,"utf8");
@@ -101,31 +101,29 @@ class Config {
     }
 
     getApplication(appId) {
-        let payload = this.msalApps.get(appId);
-        if (payload) {
-            return payload
+        let app = this.apps.get(appId);
+        if (app) {
+            return app;
         }
 
-        const app = this.get("appsMap").get(appId);
-        if (!app) {
+        const appSettings = this.get("appsMap").get(appId);
+        if (!appSettings) {
             return false;
         }
 
-        const config = {
-            auth: {
-                clientId: app.client_id,
-                authority: format("%s/%s",app.cloud_id,app.tenant_id),
-                clientSecret: app.client_secret
-            }
+        const options = {
+            clientId: appSettings.client_id,
+            clientSecret: appSettings.client_secret,
+            cloudId: appSettings.cloud_id,
+            tenantId: appSettings.tenant_id,
+            scopes: appSettings.userScopes,
+            redirectUri: appSettings.redirectUri
         };
 
-        payload = {
-            cca: new msal.ConfidentialClientApplication(config),
-            app
-        };
-        this.msalApps.set(appId,payload);
+        app = new Application(appId,options);
+        this.apps.set(appId,app);
 
-        return payload;
+        return app;
     }
 }
 

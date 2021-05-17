@@ -128,7 +128,7 @@ class TokenEndpoint extends net.Server {
         }
 
         // Get application instance.
-        const { cca, app } = this.config.getApplication(message.appId);
+        const app = this.config.getApplication(message.appId);
         if (!app) {
             handler.writeError(
                 "No such application having ID '%s'",
@@ -151,12 +151,7 @@ class TokenEndpoint extends net.Server {
 
         // Get the URL used to authenticate the user.
 
-        const params = {
-            scopes: app.userScopes,
-            redirectUri: app.redirectUri
-        };
-
-        cca.getAuthCodeUrl(params).then((url) => {
+        app.getAuthCodeUrl().then((url) => {
             handler.writeMessage("redirect",{
                 sessionId,
                 timeout,
@@ -179,8 +174,8 @@ class TokenEndpoint extends net.Server {
             return;
         }
 
-        if (!message.code && typeof message.code !== "string") {
-            handler.writeError("Protocol error: code");
+        if (!message.queryString && typeof message.queryString !== "string") {
+            handler.writeError("Protocol error: queryString");
             return;
         }
 
@@ -196,7 +191,7 @@ class TokenEndpoint extends net.Server {
         }
 
         // Get application instance.
-        const { cca, app } = this.config.getApplication(session.appId);
+        const app = this.config.getApplication(session.appId);
         if (!app) {
             handler.writeError(
                 "No such application having ID '%s'",
@@ -205,17 +200,11 @@ class TokenEndpoint extends net.Server {
             return;
         }
 
-        const tokenRequest = {
-            code: message.code,
-            scopes: app.userScopes,
-            redirectUri: app.redirectUri
-        };
-
-        cca.acquireTokenByCode(tokenRequest).then((response) => {
+        app.acquireTokenByCode(message.queryString).then((tokenSet) => {
             this.sessions.delete(session.sessionId);
 
             const tokenId = crypto.randomBytes(32).toString("base64");
-            this.manager.set(tokenId,session.appId,true,response);
+            this.manager.set(tokenId,session.appId,true,tokenSet);
 
             handler.writeMessage("complete",{
                 sessionId: tokenId

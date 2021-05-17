@@ -8,6 +8,7 @@ const net = require("net");
 const path = require("path");
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const querystring = require("querystring");
 const { format } = require("util");
 
 const { Config } = require("../src/config");
@@ -81,7 +82,7 @@ function get_callback(req,res) {
             action: "callback",
             appId: app.id,
             sessionId,
-            code
+            queryString: querystring.stringify(req.query)
         };
 
         sock.write(JSON.stringify(message) + "\n");
