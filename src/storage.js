@@ -38,6 +38,10 @@ class Storage {
         this.database = null;
     }
 
+    transaction(cb) {
+        return this.database.transaction(cb);
+    }
+
     run(query,vars) {
         const stmt = this.database.prepare(query);
 

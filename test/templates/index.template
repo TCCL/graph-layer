@@ -1,2 +1,18 @@
 <p>Click <a href="/auth">here</a> to log in.</p>
 <p>Click <a href="/check">here</a> to perform a check.</p>
+<div class="cookies">
+  <table>
+    <thead>
+      <th>Cookie</th>
+      <th>Value</th>
+    </thead>
+    <tbody>
+      <% for (const key in cookies) { %>
+      <tr>
+      <td><%= key %></td>
+      <td><code><%= cookies[key] %></code></td>
+      </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,3 @@
+<p>Check result: <code><%= result %></code></p>
+<p>The server says: <%= message %></p>
+<p>Click <a href="/">here</a> to continue.</p>

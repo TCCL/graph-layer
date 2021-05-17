@@ -63,7 +63,7 @@ function send_error(res,message,...args) {
 }
 
 function get_index(req,res) {
-    render(res,"index");
+    render(res,"index",{ cookies: req.cookies });
 }
 
 function get_auth(req,res) {
@@ -171,6 +171,60 @@ function get_callback(req,res) {
     });
 }
 
+function get_check(req,res) {
+    const sessionId = req.cookies.GRAPH_LAYER_SESSID;
+
+    if (!sessionId) {
+        res.status(500).send("<h2>Invalid session</h2>");
+        return;
+    }
+
+    const { sock, app } = connect();
+    const incoming = new JsonMessage();
+
+    sock.on("connect",() => {
+        // Begin login sequence.
+        const message = {
+            action: "check",
+            appId: app.id,
+            sessionId
+        };
+
+        sock.write(JSON.stringify(message) + "\n");
+    });
+
+    sock.on("data",(chunk) => {
+        if (incoming.receive(chunk)) {
+            const message = incoming.getMessage();
+            if (message === false) {
+                log("[error]: invalid protocol message");
+                return;
+            }
+
+            if (message.type == "error") {
+                send_error(res,"Operation Error: %s",message.value);
+                return;
+            }
+
+            if (message.type == "success" || message.type == "failure") {
+                render(res,"check-message",{
+                    result: message.type,
+                    message: message.value
+                });
+            }
+            else {
+                send_error(
+                    res,
+                    "Client Error: cannot handle message: %s",
+                    message.value
+                );
+            }
+
+            sock.end();
+        }
+    });
+}
+
 function main(config) {
     const server = new Server(config);
 
@@ -181,6 +235,7 @@ function main(config) {
     server.app.get('/',get_index);
     server.app.get('/auth',get_auth);
     server.app.get('/callback',get_callback);
+    server.app.get('/check',get_check);
 
     const stop = server.stop.bind(server);
 

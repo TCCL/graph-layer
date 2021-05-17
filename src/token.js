@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const { format } = require("util");
 const { v4: generateUUID } = require("uuid");
 const IPCIDR = require("ip-cidr");
+const { TokenSet } = require("openid-client");
 
 const { JsonMessage } = require("./helpers");
 
@@ -42,6 +43,9 @@ class ConnectionHandler {
         }
         else if (message.action == "callback") {
             this.endpoint.doCallback(this,message);
+        }
+        else if (message.action == "check") {
+            this.endpoint.doCheck(this,message);
         }
         else {
             this.writeError("Message is not understood");
@@ -215,6 +219,108 @@ class TokenEndpoint extends net.Server {
             handler.writeError("Failed to acquire access token");
         });
     }
+
+    doCheck(handler,message) {
+        if (!message.appId && typeof message.appId !== "string") {
+            handler.writeError("Protocol error: appId");
+            return;
+        }
+
+        if (!message.sessionId && typeof message.sessionId !== "string") {
+            handler.writeError("Protocol error: sessionId");
+            return;
+        }
+
+        const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
+
+        if (!tokenValue) {
+            handler.writeMessage("failure","No such token");
+            return;
+        }
+
+        if (appId != message.appId) {
+            handler.writeError("App ID mismatch");
+            return;
+        }
+
+        // Only user-based tokens are allowed for a token endpoint operation. A
+        // non-user token should never be queried (in practice).
+        if (!isUser) {
+            handler.writeError("Session is invalid");
+            return;
+        }
+
+        // Create client instance for checking token. If token is not valid,
+        // attempt refresh. If the refresh fails, then we will have to fail.
+
+        const token = new Token(message.sessionId,appId,isUser,tokenValue);
+        if (!token.isExpired()) {
+            handler.writeMessage("success","Token is valid");
+            return;
+        }
+
+        token.refresh(this.manager).then((success) => {
+            if (success) {
+                handler.writeMessage("success","Token is valid");
+            }
+            else {
+                handler.writeMessage("failure","Token is invalid");
+            }
+
+        }, (err) => {
+            if (err instanceof TokenError) {
+                handler.writeError(err.toString());
+            }
+            else {
+                console.log(err);
+                handler.writeError("Failed to check token");
+            }
+        });
+    }
+}
+
+/**
+ * Encapsulates an access token.
+ */
+class Token {
+    constructor(tokenId,appId,isUser,token) {
+        this.id = tokenId;
+        this.appId = appId;
+        this.isUser = isUser;
+        this.token = new TokenSet(token);
+    }
+
+    getValue() {
+        return this.token;
+    }
+
+    getAccessToken() {
+        return this.token.access_token;
+    }
+
+    isExpired() {
+        return this.token.expired();
+    }
+
+    async refresh(manager) {
+        // We can only refresh if we have the refresh token. This token is only
+        // included if the initial request included the "offline_access" scope.
+
+        if (!this.token.refresh_token) {
+            return false;
+        }
+
+        const app = manager.config.getApplication(this.appId);
+        if (!app) {
+            throw new TokenError("No such application having ID '%s'",this.appId);
+        }
+
+        const newToken = await app.acquireTokenByRefreshToken(this.token);
+        manager.update(this.id,this.appId,this.isUser,newToken);
+        this.token = newToken;
+
+        return true;
+    }
 }
 
 /**
@@ -231,9 +337,9 @@ class TokenManager {
 
         const query =
            `SELECT
-              value,
-              app_id AS appId,
-              is_user AS userId
+              value AS 'value',
+              app_id AS 'appId',
+              is_user AS 'isUser'
             FROM
               token
             WHERE
@@ -251,6 +357,16 @@ class TokenManager {
         } catch (err) {
             throw new ErrorF("Cannot parse token for '%s'",id);
         }
+
+        return { appId, isUser: Boolean(isUser), token };
+    }
+
+    update(id,appId,isUser,token) {
+        const storage = this.config.getStorage();
+        const t = storage.transaction(() => {
+            storage.run("DELETE FROM token WHERE token_id = ?",[id]);
+            this.set(id,appId,isUser,token);
+        });
 
         return { appId, isUser, token };
     }
@@ -272,9 +388,9 @@ class TokenManager {
 
         const vars = [
             id,
+            JSON.stringify(token),
             appId,
-            isUserValue,
-            JSON.stringify(token)
+            isUserValue
         ];
 
         storage.run(query,vars);
