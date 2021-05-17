@@ -12,6 +12,7 @@ const cookieParser = require("cookie-parser");
 const querystring = require("querystring");
 const { format } = require("util");
 
+require("../src/globals");
 const { Config } = require("../src/config");
 const { Server } = require("../src/server");
 const { JsonMessage } = require("../src/helpers");
