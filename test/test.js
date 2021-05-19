@@ -175,7 +175,7 @@ function get_check(req,res) {
     const sessionId = req.cookies.GRAPH_LAYER_SESSID;
 
     if (!sessionId) {
-        res.status(500).send("<h2>Invalid session</h2>");
+        send_error(res,"Invalid session");
         return;
     }
 
@@ -183,7 +183,7 @@ function get_check(req,res) {
     const incoming = new JsonMessage();
 
     sock.on("connect",() => {
-        // Begin login sequence.
+        // Send check sequence.
         const message = {
             action: "check",
             appId: app.id,
@@ -226,6 +226,58 @@ function get_check(req,res) {
     });
 }
 
+function get_clear(req,res) {
+    const sessionId = req.cookies.GRAPH_LAYER_SESSID;
+
+    if (!sessionId) {
+        send_error(res,"Invalid session: you are already logged out");
+        return;
+    }
+
+    const { sock, app } = connect();
+    const incoming = new JsonMessage();
+
+    sock.on("connect",() => {
+        // Send check sequence.
+        const message = {
+            action: "clear",
+            appId: app.id,
+            sessionId
+        };
+
+        sock.write(JSON.stringify(message) + "\n");
+    });
+
+    sock.on("data",(chunk) => {
+        if (incoming.receive(chunk)) {
+            const message = incoming.getMessage();
+            if (message === false) {
+                log("[error]: invalid protocol message");
+                return;
+            }
+
+            if (message.type == "error") {
+                send_error(res,"Operation Error: %s",message.value);
+                return;
+            }
+
+            if (message.type == "success") {
+                res.clearCookie("GRAPH_LAYER_SESSID");
+                res.redirect(302,"/");
+            }
+            else {
+                send_error(
+                    res,
+                    "Client Error: cannot handle message: %s",
+                    message.value
+                );
+            }
+
+            sock.end();
+        }
+    });
+}
+
 function main(config) {
     const server = new Server(config);
 
@@ -237,6 +289,7 @@ function main(config) {
     server.app.get('/auth',get_auth);
     server.app.get('/callback',get_callback);
     server.app.get('/check',get_check);
+    server.app.get('/clear',get_clear);
 
     const stop = server.stop.bind(server);
 

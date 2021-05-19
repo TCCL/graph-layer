@@ -49,6 +49,9 @@ class ConnectionHandler {
         else if (message.action == "check") {
             this.endpoint.doCheck(this,message);
         }
+        else if (message.action == "clear") {
+            this.endpoint.doClear(this,message);
+        }
         else {
             this.writeError("Message is not understood");
         }
@@ -285,6 +288,43 @@ class TokenEndpoint extends net.Server {
             }
         });
     }
+
+    doClear(handler,message) {
+        if (!message.appId && typeof message.appId !== "string") {
+            handler.writeError("Protocol error: appId");
+            return;
+        }
+
+        if (!message.sessionId && typeof message.sessionId !== "string") {
+            handler.writeError("Protocol error: sessionId");
+            return;
+        }
+
+        const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
+
+        if (!tokenValue) {
+            handler.writeMessage("error","Invalid session");
+            return;
+        }
+
+        if (appId != message.appId) {
+            handler.writeError("App ID mismatch");
+            return;
+        }
+
+        // Only user-based tokens are allowed for a token endpoint operation. A
+        // non-user token should never be queried (in practice).
+        if (!isUser) {
+            handler.writeError("Session is invalid");
+            return;
+        }
+
+        // Delete the token from the manager storage.
+        this.manager.remove(message.sessionId);
+        handler.writeMessage("success",{
+            message: "Token was removed"
+        });
+    }
 }
 
 /**
@@ -369,18 +409,6 @@ class TokenManager {
         return { appId, isUser: Boolean(isUser), token };
     }
 
-    update(id,appId,isUser,token) {
-        const storage = this.config.getStorage();
-        const t = storage.transaction(() => {
-            storage.run("DELETE FROM token WHERE token_id = ?",[id]);
-            this.set(id,appId,isUser,token);
-        });
-
-        t();
-
-        return { appId, isUser, token };
-    }
-
     set(id,appId,isUser,token) {
         const storage = this.config.getStorage();
         const isUserValue = isUser ? 1 : 0;
@@ -402,6 +430,27 @@ class TokenManager {
             appId,
             isUserValue
         ];
+
+        storage.run(query,vars);
+    }
+
+    update(id,appId,isUser,token) {
+        const storage = this.config.getStorage();
+        const t = storage.transaction(() => {
+            storage.run("DELETE FROM token WHERE token_id = ?",[id]);
+            this.set(id,appId,isUser,token);
+        });
+
+        t();
+
+        return { appId, isUser, token };
+    }
+
+    remove(id) {
+        const storage = this.config.getStorage();
+
+        const query = "DELETE FROM token WHERE token_id = ?";
+        const vars = [id];
 
         storage.run(query,vars);
     }
