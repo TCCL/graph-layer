@@ -209,7 +209,8 @@ function get_check(req,res) {
             if (message.type == "success" || message.type == "failure") {
                 render(res,"check-message",{
                     result: message.type,
-                    message: message.value
+                    message: message.value.message,
+                    type: message.value.type
                 });
             }
             else {

@@ -13,6 +13,8 @@ const { TokenSet } = require("openid-client");
 
 const { JsonMessage } = require("./helpers");
 
+class TokenError extends ErrorF {}
+
 class ConnectionHandler {
     constructor(sock,endpoint) {
         sock.setEncoding("utf8");
@@ -255,13 +257,19 @@ class TokenEndpoint extends net.Server {
 
         const token = new Token(message.sessionId,appId,isUser,tokenValue);
         if (!token.isExpired()) {
-            handler.writeMessage("success","Token is valid");
+            handler.writeMessage("success",{
+                message: "Token is valid",
+                type: "reuse"
+            });
             return;
         }
 
         token.refresh(this.manager).then((success) => {
             if (success) {
-                handler.writeMessage("success","Token is valid");
+                handler.writeMessage("success",{
+                    message: "Token is valid",
+                    type: "refresh"
+                });
             }
             else {
                 handler.writeMessage("failure","Token is invalid");
@@ -367,6 +375,8 @@ class TokenManager {
             storage.run("DELETE FROM token WHERE token_id = ?",[id]);
             this.set(id,appId,isUser,token);
         });
+
+        t();
 
         return { appId, isUser, token };
     }
