@@ -80,11 +80,16 @@ class TokenEndpoint extends net.Server {
 
         this.config = manager.config;
         this.manager = manager;
+        this.cleanupInterval = null;
 
         this.sessions = new Map();
     }
 
     start() {
+        if (this.listening) {
+            throw new Error("TokenEndpoint is already started");
+        }
+
         const [ port, host, whitelist ] = this.config.get("tokenEndpoint")
               .get("port","host","whitelist");
 
@@ -123,11 +128,25 @@ class TokenEndpoint extends net.Server {
         });
 
         this.listen(port,host);
+
+        this.cleanupInterval = setInterval(
+            () => {
+                this.manager.cleanup();
+            },
+            3600
+        );
+        this.manager.cleanup();
     }
 
     stop() {
+        if (!this.listening) {
+            throw new Error("TokenEndpoint is not started");
+        }
+
         this.removeAllListeners("connection");
         this.close();
+
+        clearInterval(this.cleanupInterval);
     }
 
     doAuth(handler,message) {
@@ -283,7 +302,7 @@ class TokenEndpoint extends net.Server {
                 handler.writeError(err.toString());
             }
             else {
-                console.log(err);
+                console.error(err);
                 handler.writeError("Failed to check token");
             }
         });
@@ -348,6 +367,17 @@ class Token {
 
     isExpired() {
         return this.token.expired();
+    }
+
+    isExpiredByDays(ndays) {
+        if (!this.token.expired()) {
+            return false;
+        }
+
+        const now = Math.round(Date.now() / 1000);
+        const ts = this.token.expires_at + ndays * 86400;
+
+        return now >= ts;
     }
 
     async refresh(manager) {
@@ -453,6 +483,54 @@ class TokenManager {
         const vars = [id];
 
         storage.run(query,vars);
+    }
+
+    cleanup() {
+        const storage = this.config.getStorage();
+
+        // Clean up any tokens that have expired.
+        const t = storage.transaction(() => {
+            const del = storage.prepare(
+                `DELETE FROM token WHERE token_id = ?`
+            );
+
+            const select =
+                `SELECT
+                   token_id AS 'tokenId',
+                   value AS 'value',
+                   app_id AS 'appId',
+                   is_user AS 'isUser'
+                 FROM
+                  token`;
+
+            const rm = [];
+            for (const record of storage.iterate(select)) {
+                let tokenObj;
+
+                try {
+                    tokenObj = JSON.parse(record.value);
+                } catch (err) {
+                    continue;
+                }
+
+                const token = new Token(
+                    record.tokenId,
+                    record.appId,
+                    Boolean(record.isUser),
+                    tokenObj
+                );
+
+                if (token.isExpiredByDays(15)) {
+                    rm.push(record.tokenId);
+                }
+            }
+
+            for (const tokenId of rm) {
+                del.run(tokenId);
+            }
+        });
+
+        t();
     }
 }
 

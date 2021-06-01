@@ -38,32 +38,36 @@ class Storage {
         this.database = null;
     }
 
+    prepare(query) {
+        return this.database.prepare(query);
+    }
+
     transaction(cb) {
         return this.database.transaction(cb);
     }
 
-    run(query,vars) {
+    run(query,...vars) {
         const stmt = this.database.prepare(query);
 
-        return stmt.run(vars);
+        return stmt.run(...vars);
     }
 
-    get(query,vars) {
+    get(query,...vars) {
         const stmt = this.database.prepare(query);
 
-        return stmt.get(vars);
+        return stmt.get(...vars);
     }
 
-    all(query,vars) {
+    all(query,...vars) {
         const stmt = this.database.prepare(query);
 
-        return stmt.all(vars);
+        return stmt.all(...vars);
     }
 
-    iterate(query,vars) {
+    iterate(query,...vars) {
         const stmt = this.database.prepare(query);
 
-        return stmt.iterate(vars);
+        return stmt.iterate(...vars);
     }
 
     getConfig(key) {
