@@ -8,6 +8,11 @@ class TokenError extends ErrorF {
 
 }
 
+class EndpointError extends ErrorF {
+
+}
+
 module.exports = {
-    TokenError
+    TokenError,
+    EndpointError
 };

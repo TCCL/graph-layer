@@ -10,7 +10,7 @@ const { v4: generateUUID } = require("uuid");
 const IPCIDR = require("ip-cidr");
 
 const { Token } = require("./token");
-const { TokenError } = require("./error");
+const { TokenError, EndpointError } = require("./error");
 const { ConnectionHandler } = require("./handler");
 
 /**
@@ -93,8 +93,7 @@ class TokenEndpoint extends net.Server {
 
     doAuth(handler,message) {
         if (!message.appId && typeof message.appId !== "string") {
-            handler.writeError("Protocol error: appId");
-            return;
+            throw new EndpointError("Message missing appId");
         }
 
         // Get application instance.
@@ -135,29 +134,24 @@ class TokenEndpoint extends net.Server {
 
     doCallback(handler,message) {
         if (!message.appId && typeof message.appId !== "string") {
-            handler.writeError("Protocol error: appId");
-            return;
+            throw new EndpointError("Message missing appId");
         }
 
         if (!message.sessionId && typeof message.sessionId !== "string") {
-            handler.writeError("Protocol error: sessionId");
-            return;
+            throw new EndpointError("Message missing sessionId");
         }
 
         if (!message.queryString && typeof message.queryString !== "string") {
-            handler.writeError("Protocol error: queryString");
-            return;
+            throw new EndpointError("Message missing queryString");
         }
 
         const session = this.sessions.get(message.sessionId);
         if (!session) {
-            handler.writeError("Invalid session");
-            return;
+            throw new EndpointError("Invalid session");
         }
 
         if (session.appId != message.appId) {
-            handler.writeError("Invalid application");
-            return;
+            throw new EndpointError("Invalid application");
         }
 
         // Get application instance.
@@ -188,32 +182,27 @@ class TokenEndpoint extends net.Server {
 
     doCheck(handler,message) {
         if (!message.appId && typeof message.appId !== "string") {
-            handler.writeError("Protocol error: appId");
-            return;
+            throw new EndpointError("Message missing appId");
         }
 
         if (!message.sessionId && typeof message.sessionId !== "string") {
-            handler.writeError("Protocol error: sessionId");
-            return;
+            throw new EndpointError("Message missing sessionId");
         }
 
         const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
 
         if (!tokenValue) {
-            handler.writeMessage("failure","No such token");
-            return;
+            throw new EndpointError("failure","No such token");
         }
 
         if (appId != message.appId) {
-            handler.writeError("App ID mismatch");
-            return;
+            throw new EndpointError("App ID mismatch");
         }
 
         // Only user-based tokens are allowed for a token endpoint operation. A
         // non-user token should never be queried (in practice).
         if (!isUser) {
-            handler.writeError("Session is invalid");
-            return;
+            throw new EndpointError("Session is invalid");
         }
 
         // Create client instance for checking token. If token is not valid,
@@ -252,32 +241,27 @@ class TokenEndpoint extends net.Server {
 
     doClear(handler,message) {
         if (!message.appId && typeof message.appId !== "string") {
-            handler.writeError("Protocol error: appId");
-            return;
+            throw new EndpointError("Message missing appId");
         }
 
         if (!message.sessionId && typeof message.sessionId !== "string") {
-            handler.writeError("Protocol error: sessionId");
-            return;
+            throw new EndpointError("Message missing sessionId");
         }
 
         const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
 
         if (!tokenValue) {
-            handler.writeMessage("error","Invalid session");
-            return;
+            throw new EndpointError("Invalid session");
         }
 
         if (appId != message.appId) {
-            handler.writeError("App ID mismatch");
-            return;
+            throw new EndpointError("App ID mismatch");
         }
 
         // Only user-based tokens are allowed for a token endpoint operation. A
         // non-user token should never be queried (in practice).
         if (!isUser) {
-            handler.writeError("Session is invalid");
-            return;
+            throw new EndpointError("Session is invalid");
         }
 
         // Delete the token from the manager storage.

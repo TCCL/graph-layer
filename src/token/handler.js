@@ -4,6 +4,7 @@
  * @tccl/graph-layer
  */
 
+const { EndpointError } = require("./error");
 const { JsonMessage } = require("../helpers");
 
 /**
@@ -34,20 +35,29 @@ class ConnectionHandler {
     }
 
     processMessage(message) {
-        if (message.action == "auth") {
-            this.endpoint.doAuth(this,message);
-        }
-        else if (message.action == "callback") {
-            this.endpoint.doCallback(this,message);
-        }
-        else if (message.action == "check") {
-            this.endpoint.doCheck(this,message);
-        }
-        else if (message.action == "clear") {
-            this.endpoint.doClear(this,message);
-        }
-        else {
-            this.writeError("Message is not understood");
+        try {
+            if (message.action == "auth") {
+                this.endpoint.doAuth(this,message);
+            }
+            else if (message.action == "callback") {
+                this.endpoint.doCallback(this,message);
+            }
+            else if (message.action == "check") {
+                this.endpoint.doCheck(this,message);
+            }
+            else if (message.action == "clear") {
+                this.endpoint.doClear(this,message);
+            }
+            else {
+                this.writeError("Message is not understood");
+            }
+        } catch (err) {
+            if (err instanceof EndpointError) {
+                this.writeError(err.toString());
+            }
+            else {
+                throw err;
+            }
         }
     }
 
