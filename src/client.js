@@ -4,6 +4,7 @@
  * @tccl/graph-layer
  */
 
+require("isomorphic-fetch");
 const MicrosoftGraph = require("@microsoft/microsoft-graph-client");
 
 class Client {

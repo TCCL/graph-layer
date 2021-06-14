@@ -12,6 +12,7 @@ const IPCIDR = require("ip-cidr");
 const { Token } = require("./token");
 const { TokenError, EndpointError } = require("./error");
 const { ConnectionHandler } = require("./handler");
+const { Client } = require("../client");
 
 /**
  * Implements a net.Server that provides the token endpoint.
@@ -268,6 +269,59 @@ class TokenEndpoint extends net.Server {
         this.manager.remove(message.sessionId);
         handler.writeMessage("success",{
             message: "Token was removed"
+        });
+    }
+
+    doUserInfo(handler,message) {
+        if (!message.appId && typeof message.appId !== "string") {
+            throw new EndpointError("Message missing appId");
+        }
+
+        if (!message.sessionId && typeof message.sessionId !== "string") {
+            throw new EndpointError("Message missing sessionId");
+        }
+
+        const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
+
+        if (!tokenValue) {
+            throw new EndpointError("Invalid session");
+        }
+
+        if (appId != message.appId) {
+            throw new EndpointError("App ID mismatch");
+        }
+
+        let getToken;
+        const token = new Token(message.sessionId,appId,isUser,tokenValue);
+        if (token.isExpired()) {
+            token.refresh(this.manager).then((success) => {
+                if (success) {
+                    return token;
+                }
+
+                throw new EndpointError("Token is expired and cannot be refreshed");
+
+            }, (err) => {
+            });
+        }
+        else {
+            getToken = Promise.resolve(token);
+        }
+
+        getToken.then(async (token) => {
+            const client = new Client(token);
+            const result = await client.api("/me").get();
+
+            handler.writeMessage("success",result);
+
+        }).catch((err) => {
+            if (err instanceof TokenError || err instanceof EndpointError) {
+                handler.writeError(err.toString());
+            }
+            else {
+                console.error(err);
+                handler.writeError("Operation failed: user info could not be queried");
+            }
         });
     }
 }

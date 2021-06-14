@@ -1,6 +1,7 @@
 <p>Click <a href="/auth">here</a> to log in.</p>
 <p>Click <a href="/check">here</a> to perform a check.</p>
 <p>Click <a href="/clear">here</a> to perform a logout.</p>
+<p>Click <a href="/userinfo">here</a> to query user info.</p>
 <div class="cookies">
   <table>
     <thead>

@@ -23,6 +23,7 @@
     "comment-json": "^4.1.0",
     "express": "^4.17.1",
     "ip-cidr": "^2.1.4",
+    "isomorphic-fetch": "^3.0.0",
     "openid-client": "^4.7.3",
     "uuid": "^8.3.2",
     "yargs": "^17.0.1"

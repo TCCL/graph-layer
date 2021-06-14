@@ -278,6 +278,50 @@ function get_clear(req,res) {
     });
 }
 
+function get_userinfo(req,res) {
+    const sessionId = req.cookies.GRAPH_LAYER_SESSID;
+
+    if (!sessionId) {
+        send_error(res,"Invalid session: you are not logged in");
+        return;
+    }
+
+    const { sock, app } = connect();
+    const incoming = new JsonMessage();
+
+    sock.on("connect",() => {
+        // Send check sequence.
+        const message = {
+            action: "userInfo",
+            appId: app.id,
+            sessionId
+        };
+
+        sock.write(JSON.stringify(message) + "\n");
+    });
+
+    sock.on("data",(chunk) => {
+        if (incoming.receive(chunk)) {
+            const message = incoming.getMessage();
+            if (message === false) {
+                log("[error]: invalid protocol message");
+                return;
+            }
+
+            if (message.type != "success") {
+                send_error(
+                    res,
+                    "Client Error: cannot handle message: %s",
+                    message.value
+                );
+                return;
+            }
+
+            render(res,"userinfo",{ result:message.value });
+        }
+    });
+}
+
 function main(config) {
     const server = new Server(config);
 
@@ -290,6 +334,7 @@ function main(config) {
     server.app.get('/callback',get_callback);
     server.app.get('/check',get_check);
     server.app.get('/clear',get_clear);
+    server.app.get('/userinfo',get_userinfo);
 
     const stop = server.stop.bind(server);
 

@@ -4,6 +4,8 @@
  * @tccl/graph-layer
  */
 
+const { format } = require("util");
+
 const { EndpointError } = require("./error");
 const { JsonMessage } = require("../helpers");
 
@@ -47,6 +49,9 @@ class ConnectionHandler {
             }
             else if (message.action == "clear") {
                 this.endpoint.doClear(this,message);
+            }
+            else if (message.action == "userInfo") {
+                this.endpoint.doUserInfo(this,message);
             }
             else {
                 this.writeError("Message is not understood");
