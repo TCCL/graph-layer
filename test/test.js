@@ -294,7 +294,8 @@ function get_userinfo(req,res) {
         const message = {
             action: "userInfo",
             appId: app.id,
-            sessionId
+            sessionId,
+            select: ['id','displayName','mail','onPremisesSamAccountName']
         };
 
         sock.write(JSON.stringify(message) + "\n");

@@ -281,6 +281,16 @@ class TokenEndpoint extends net.Server {
             throw new EndpointError("Message missing sessionId");
         }
 
+        const select = message.select || [];
+
+        if (!Array.isArray(select)) {
+            if (typeof select !== "string") {
+                throw new EndpointError("Invalid 'select' property in message");
+            }
+
+            select = [select];
+        }
+
         const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
 
         if (!tokenValue) {
@@ -294,14 +304,12 @@ class TokenEndpoint extends net.Server {
         let getToken;
         const token = new Token(message.sessionId,appId,isUser,tokenValue);
         if (token.isExpired()) {
-            token.refresh(this.manager).then((success) => {
+            getToken = token.refresh(this.manager).then((success) => {
                 if (success) {
                     return token;
                 }
 
                 throw new EndpointError("Token is expired and cannot be refreshed");
-
-            }, (err) => {
             });
         }
         else {
@@ -310,8 +318,15 @@ class TokenEndpoint extends net.Server {
 
         getToken.then(async (token) => {
             const client = new Client(token);
-            const result = await client.api("/me").get();
+            const call = client.api("/me");
 
+            if (select.length > 0) {
+                for (let i = 0;i < select.length;++i) {
+                    call.select(select[i]);
+                }
+            }
+
+            const result = await call.get();
             handler.writeMessage("success",result);
 
         }).catch((err) => {
