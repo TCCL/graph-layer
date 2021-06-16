@@ -47,6 +47,12 @@ class Application {
         return client.refresh(tokenSet);
     }
 
+    async getLogoutUrl() {
+        const client = await this._getClient();
+
+        return client.endSessionUrl();
+    }
+
     async _getClient() {
         if (!this.issuer) {
             let uri = this.options.cloudId;

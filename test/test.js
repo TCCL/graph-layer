@@ -263,7 +263,9 @@ function get_clear(req,res) {
 
             if (message.type == "success") {
                 res.clearCookie("GRAPH_LAYER_SESSID");
-                res.redirect(302,"/");
+                render(res,"clear",{
+                    logoutUrl: message.value.logoutUrl
+                });
             }
             else {
                 send_error(

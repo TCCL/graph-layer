@@ -158,11 +158,7 @@ class TokenEndpoint extends net.Server {
         // Get application instance.
         const app = this.config.getApplication(session.appId);
         if (!app) {
-            handler.writeError(
-                "No such application having ID '%s'",
-                session.appId
-            );
-            return;
+            throw new EndpointError("No such application having ID '%s'",session.appId);
         }
 
         app.acquireTokenByCode(message.queryString).then((tokenSet) => {
@@ -265,10 +261,19 @@ class TokenEndpoint extends net.Server {
             throw new EndpointError("Session is invalid");
         }
 
+        const app = this.config.getApplication(appId);
+        if (!app) {
+            throw new EndpointError("No such application having ID '%s'",appId);
+        }
+
         // Delete the token from the manager storage.
         this.manager.remove(message.sessionId);
-        handler.writeMessage("success",{
-            message: "Token was removed"
+
+        app.getLogoutUrl().then((logoutUrl) => {
+            handler.writeMessage("success",{
+                message: "Token was removed",
+                logoutUrl
+            });
         });
     }
 
