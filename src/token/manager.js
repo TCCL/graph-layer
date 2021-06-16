@@ -32,9 +32,14 @@ class TokenManager {
             id
         ];
 
-        let token;
-        const { value, appId, isUser } = storage.get(query,vars);
+        const result = storage.get(query,vars);
+        if (!result) {
+            return {};
+        }
 
+        const { value, appId, isUser } = result;
+
+        let token;
         try {
             token = JSON.parse(value);
         } catch (err) {
