@@ -34,7 +34,7 @@
     ],
 
     /**
-     * The INET configuration used by the worker process to accept incoming HTTP
+     * The INET configuration used by the proxy endpoint to accept incoming HTTP
      * connections.
      */
     "host": "0.0.0.0",

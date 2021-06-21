@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://tccl-apps/git/intranet/graph-layer.git"
+    "url": "https://git.developer.tulsalibrary.org/intranet/graph-layer.git"
   },
   "author": "Tulsa City-County Library",
   "license": "MIT",
