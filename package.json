@@ -1,0 +1,42 @@
+{
+  "name": "@tccl/graph-layer",
+  "version": "1.0.0-dev",
+  "description": "API integration layer for Microsoft Graph API",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node test/test.js",
+    "debug": "node inspect test/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://git.developer.tulsalibrary.org/intranet/graph-layer.git"
+  },
+  "author": "Tulsa City-County Library",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "bin": {
+    "graph-layer": "./graph-layer.js"
+  },
+  "files": [
+    "README.md",
+    "src/**"
+  ],
+  "dependencies": {
+    "@microsoft/microsoft-graph-client": "^2.2.1",
+    "better-sqlite3": "^7.3.1",
+    "comment-json": "^4.1.0",
+    "express": "^4.17.1",
+    "ip-cidr": "^2.1.4",
+    "isomorphic-fetch": "^3.0.0",
+    "openid-client": "^4.7.3",
+    "uuid": "^8.3.2",
+    "yargs": "^17.0.1"
+  },
+  "devDependencies": {
+    "cookie-parser": "^1.4.5",
+    "ejs": "^3.1.6"
+  }
+}

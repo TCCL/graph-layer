@@ -1,0 +1,7 @@
+#
+# .gitignore - @tccl/graph-layer
+#
+
+/config.json
+
+/node_modules/
