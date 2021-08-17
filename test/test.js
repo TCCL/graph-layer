@@ -327,17 +327,18 @@ function get_userinfo(req,res) {
 
 function main(config) {
     const server = new Server(config);
+    const app = server.getApp();
 
-    server.app.use(cookieParser());
-    server.app.use(express.static(path.join(__dirname,"public")));
+    app.use(cookieParser());
+    app.use(express.static(path.join(__dirname,"public")));
     server.start();
 
-    server.app.get('/',get_index);
-    server.app.get('/auth',get_auth);
-    server.app.get('/callback',get_callback);
-    server.app.get('/check',get_check);
-    server.app.get('/clear',get_clear);
-    server.app.get('/userinfo',get_userinfo);
+    app.get('/',get_index);
+    app.get('/auth',get_auth);
+    app.get('/callback',get_callback);
+    app.get('/check',get_check);
+    app.get('/clear',get_clear);
+    app.get('/userinfo',get_userinfo);
 
     const stop = server.stop.bind(server);
 
