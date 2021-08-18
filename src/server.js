@@ -8,10 +8,16 @@ const { ProxyEndpoint } = require("./proxy");
 const { TokenManager, TokenEndpoint } = require("./token");
 
 class Server {
-    constructor(config) {
+    constructor(config,_options) {
+        const options = _options || {};
+
         this.config = config;
         this.manager = new TokenManager(config);
-        this.proxyEndpoint = new ProxyEndpoint(this.manager,config);
+        this.proxyEndpoint = new ProxyEndpoint(
+            this.manager,
+            config,
+            options
+        );
         this.tokenEndpoint = new TokenEndpoint(this.manager);
     }
 

@@ -8,7 +8,6 @@ const ejs = require("ejs");
 const net = require("net");
 const path = require("path");
 const express = require("express");
-const cookieParser = require("cookie-parser");
 const querystring = require("querystring");
 const { format } = require("util");
 
@@ -326,19 +325,22 @@ function get_userinfo(req,res) {
 }
 
 function main(config) {
-    const server = new Server(config);
+    const options = {
+        testing: true
+    };
+
+    const server = new Server(config,options);
     const app = server.getApp();
 
-    app.use(cookieParser());
     app.use(express.static(path.join(__dirname,"public")));
-    server.start();
-
     app.get('/',get_index);
     app.get('/auth',get_auth);
     app.get('/callback',get_callback);
     app.get('/check',get_check);
     app.get('/clear',get_clear);
     app.get('/userinfo',get_userinfo);
+
+    server.start();
 
     const stop = server.stop.bind(server);
 

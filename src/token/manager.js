@@ -49,6 +49,28 @@ class TokenManager {
         return { appId, isUser: Boolean(isUser), token };
     }
 
+    /**
+     * Obtain access token by ID. This is a high-level variant that ensures the
+     * token is not expired.
+     */
+    async getToken(id) {
+        const { appId, isUser, token: tokenValue } = this.get(id);
+        if (!tokenValue) {
+            throw new ErrorF("Token having id='%s' does not exist",id);
+        }
+
+        const token = new Token(id,appId,isUser,tokenValue);
+
+        if (token.isExpired()) {
+            const success = await token.refresh(this);
+            if (!success) {
+                throw new ErrorF("Token is expired and cannot be refreshed");
+            }
+        }
+
+        return token;
+    }
+
     set(id,appId,isUser,token) {
         const storage = this.config.getStorage();
         const isUserValue = isUser ? 1 : 0;

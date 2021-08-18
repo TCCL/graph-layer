@@ -68,7 +68,7 @@ class Config {
             this.storage = null;
         }
         this.apps.clear();
-        this.cfg = new ConfigObject(configFile);
+        this.cfg = new ConfigObject("["+configFile+"]");
 
         const data = await p(fs.readFile)(configFile,"utf8");
         const cfg = commentJSON.parse(data,null,false);
