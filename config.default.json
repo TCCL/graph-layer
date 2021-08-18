@@ -29,27 +29,29 @@
         }
     ],
 
-    /**
-     * The INET configuration used by the proxy endpoint to accept incoming HTTP
-     * connections.
-     */
-    "host": "0.0.0.0",
-    "port": 8000,
+    "proxyEndpoint": {
+        /**
+         * The INET configuration used by the proxy endpoint to accept incoming HTTP
+         * connections.
+         */
+        "host": "0.0.0.0",
+        "port": 8000,
 
-    /**
-     * Cookie that contains the graph layer session ID.
-     */
-    "cookie": "GRAPH_LAYER_SESSID",
+        /**
+         * Cookie that contains the graph layer session ID.
+         */
+        "cookie": "GRAPH_LAYER_SESSID",
 
-    /**
-     * The base path for all Microsoft graph URIs that are proxied via the proxy
-     * endpoint.
-     *
-     * This is the prefix path component(s) that is matched against any URI
-     * processed by the proxy endpoint. Leave empty (or "/") to proxy URIs
-     * as-is.
-     */
-    "basePath": "/graph/layer",
+        /**
+         * The base path for all Microsoft graph URIs that are proxied via the proxy
+         * endpoint.
+         *
+         * This is the prefix path component(s) that is matched against any URI
+         * processed by the proxy endpoint. Leave empty (or "/") to proxy URIs
+         * as-is.
+         */
+        "basePath": "/graph/layer"
+    },
 
     /**
      * Configure the token endpoint.

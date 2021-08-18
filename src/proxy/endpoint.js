@@ -38,10 +38,10 @@ class ProxyEndpoint {
         const options = _options || {};
 
         this.tokenManager = tokenManager;
-        this.config = config;
+        this.config = config.get("proxyEndpoint");
         this.server = null;
 
-        const [ cookieName, basePath ] = config.get("cookie","basePath");
+        const [ cookieName, basePath ] = this.config.get("cookie","basePath");
         this.cookieName = cookieName;
         this.basePath = basePath;
 
