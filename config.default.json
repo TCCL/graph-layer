@@ -50,7 +50,29 @@
          * processed by the proxy endpoint. Leave empty (or "/") to proxy URIs
          * as-is.
          */
-        "basePath": "/graph/layer"
+        "basePath": "/graph/layer",
+
+        /**
+         * List of API endpoints that are allowed and will be proxied. Any other
+         * endpoints are not allowed and return HTTP 404. Elements in this list
+         * are glob patterns matched via minimatch.
+         *
+         * An empty list means 'allow all'.
+         *
+         * NOTE: The whitelist *cannot* allow endpoints disallowed by the
+         * blacklist.
+         */
+        "whitelist": [],
+
+        /**
+         * List of API endpoints that are not allowed and will return HTTP
+         * 404. Any other endpoints are allowed and will be proxied. Elements in
+         * this list are glob patterns matched via minimatch.
+         *
+         * NOTE: The blacklist can be used to disallow endpoints allowed by the
+         * whitelist.
+         */
+        "blacklist": []
     },
 
     /**

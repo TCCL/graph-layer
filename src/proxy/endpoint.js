@@ -6,6 +6,7 @@
 
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const { Minimatch } = require("minimatch");
 const { ResponseType } = require("@microsoft/microsoft-graph-client");
 
 const { Client } = require("../client");
@@ -21,6 +22,26 @@ const FORWARD_HEADERS = [
     "cache-control",
     "pragma"
 ];
+
+function createList(list) {
+    if (!Array.isArray(list)) {
+        return createList([list]);
+    }
+
+    return list.map((pattern) => new Minimatch(pattern));
+}
+
+function listMatches(endpoint) {
+    return (mm) => mm.match(endpoint);
+}
+
+function notFound(req,res,next) {
+    res.status(404).json({
+        status: 404,
+        error: "Not Found",
+        message: "The resource you requested does not exist"
+    });
+}
 
 function makePathPrefix(basePath) {
     const m = basePath.match("^/*(.*[^/]?)/*$");
@@ -41,9 +62,22 @@ class ProxyEndpoint {
         this.config = config.get("proxyEndpoint");
         this.server = null;
 
-        const [ cookieName, basePath ] = this.config.get("cookie","basePath");
+        const [
+            cookieName,
+            basePath,
+            whitelist,
+            blacklist
+        ] = this.config.get(
+            "cookie",
+            "basePath",
+            "whitelist",
+            "blacklist"
+        );
+
         this.cookieName = cookieName;
         this.basePath = basePath;
+        this.whitelist = createList(whitelist);
+        this.blacklist = createList(blacklist);
 
         const proxyHandler = this.proxy.bind(this);
 
@@ -52,13 +86,7 @@ class ProxyEndpoint {
         this.app.use(cookieParser());
         this.app.get(makePathPrefix(basePath),proxyHandler);
         if (!options.testing) {
-            this.app.get("*",(req,res,next) => {
-                res.status(404).json({
-                    status: 404,
-                    error: "Not Found",
-                    message: "The resource you requested does not exist"
-                });
-            });
+            this.app.get("*",notFound);
         }
     }
 
@@ -81,6 +109,7 @@ class ProxyEndpoint {
     }
 
     proxy(req,res,next) {
+        // Pull session ID (i.e. token ID) from cookies.
         const sessionId = req.cookies[this.cookieName];
         if (!sessionId) {
             res.status(401).json({
@@ -92,6 +121,18 @@ class ProxyEndpoint {
             return;
         }
 
+        // Exclude endpoints that are blacklisted or not whitelisted.
+        const testfn = listMatches(req.params[0]);
+        const disallow = this.blacklist.some(testfn);
+        if (disallow
+            || (this.whitelist.length > 0
+                && !this.whitelist.some(testfn)))
+        {
+            notFound(req,res,next);
+            return;
+        }
+
+        // Do proxy.
         this.graphAPI(sessionId,req).then((graphResponse) => {
             // Transfer headers.
             for (const name of graphResponse.headers.keys()) {
@@ -116,9 +157,11 @@ class ProxyEndpoint {
     }
 
     async graphAPI(sessionId,downReq) {
+        // Load token by session ID to load client instance.
         const token = await this.tokenManager.getToken(sessionId);
         const client = new Client(token);
 
+        // Prepare upstream request.
         const upReq = client.api(downReq.params[0]);
         upReq.query(downReq.query);
         upReq.option("compress",false);
