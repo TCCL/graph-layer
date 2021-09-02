@@ -1,3 +1,2 @@
 <p>Check result: <code><%= result %></code></p>
 <p>The server says: <%= message %>. <code>[type=<%= type %>]</code></p>
-<p>Click <a href="/">here</a> to continue.</p>
