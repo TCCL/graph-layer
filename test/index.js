@@ -6,7 +6,6 @@
 
 const ejs = require("ejs");
 const net = require("net");
-const path = require("path");
 const express = require("express");
 const querystring = require("querystring");
 const { format } = require("util");
@@ -26,7 +25,8 @@ class Testbed {
         if (!this.options.plugins) {
             this.options.plugins = [];
         }
-        this.options.plugins.unshift(require("./standard-routes"));
+        this.options.plugins.unshift(require("./standard-routes").token);
+        this.options.plugins.unshift(require("./standard-routes").standard);
 
         this.links = [];
     }
@@ -40,9 +40,6 @@ class Testbed {
 
         const server = new Server(this.config,serverOptions);
         const app = server.getApp();
-
-        // Include core static files.
-        app.use(express.static(path.join(__dirname,"public")));
 
         // Include static files and routes from plugins. This will at least
         // integrate the standard routes providing the core graph-layer tests.
@@ -65,16 +62,25 @@ class Testbed {
                 const linksEntry = [plugin.title || '???',[]];
                 const links = linksEntry[1];
 
-                this.links.push(linksEntry);
                 for (let i = 0;i < plugin.routes.length;++i) {
                     const [ route, handler, linkText ] = plugin.routes[i];
-                    app.get(route,this._makeHandlerFunction(handler));
+                    const handlerfn = this._makeHandlerFunction(
+                        handler,
+                        plugin.assets || {}
+                    );
+
+                    app.get(route,handlerfn);
+
                     if (linkText) {
                         links.push({
                             route,
                             linkText
                         });
                     }
+                }
+
+                if (links.length > 0) {
+                    this.links.push(linksEntry);
                 }
             }
 
@@ -156,7 +162,21 @@ class Testbed {
         this.render(res,"Server Error","error",{ error });
     }
 
-    _makeHandlerFunction(handler) {
+    _makeHandlerFunction(handler,defaultAssets) {
+        const renderfn = (req,res,title,contentName,vars,styles,scripts,cb) => {
+            let css = styles || [];
+            let js = scripts || [];
+
+            if (defaultAssets.styles) {
+                css = defaultAssets.styles.concat(css);
+            }
+            if (defaultAssets.scripts) {
+                js = defaultAssets.scripts.concat(js);
+            }
+
+            this.render(req,res,title,contentName,vars,css,js,cb);
+        };
+
         return (req,res) => {
             let query = querystring.stringify(req.query);
             if (query) {
@@ -165,7 +185,7 @@ class Testbed {
 
             this.log("REQ","%s - %s %s%s",req.ip,req.method,req.path,query);
 
-            return handler(this,req,res);
+            return handler(this,renderfn,req,res);
         };
     }
 }

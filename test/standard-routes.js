@@ -4,12 +4,13 @@
  * @tccl/graph-layer/test
  */
 
+const path = require("path");
 const querystring = require("querystring");
 
 const { JsonMessage } = require("../src/helpers");
 
-function get_index(testbed,req,res) {
-    testbed.render(req,res,"","index",{
+function get_index(testbed,render,req,res) {
+    render(req,res,"","index",{
         cookies: req.cookies,
         links: testbed.links
     });
@@ -57,7 +58,7 @@ function get_auth(testbed,req,res) {
     });
 }
 
-function get_callback(testbed,req,res) {
+function get_callback(testbed,render,req,res) {
     const code = req.query.code;
     const sessionId = req.cookies.GRAPH_LAYER_AUTH_SESSID;
 
@@ -98,7 +99,7 @@ function get_callback(testbed,req,res) {
                 res.clearCookie("GRAPH_LAYER_AUTH_SESSID");
                 res.cookie("GRAPH_LAYER_SESSID",message.value.sessionId);
 
-                testbed.render(
+                render(
                     res,
                     "Callback Completed",
                     "callback-message",
@@ -123,7 +124,7 @@ function get_callback(testbed,req,res) {
     });
 }
 
-function get_check(testbed,req,res) {
+function get_check(testbed,render,req,res) {
     const sessionId = req.cookies.GRAPH_LAYER_SESSID;
 
     if (!sessionId) {
@@ -159,7 +160,7 @@ function get_check(testbed,req,res) {
             }
 
             if (message.type == "success" || message.type == "failure") {
-                testbed.render(req,res,"Check","check-message",{
+                render(req,res,"Check","check-message",{
                     result: message.type,
                     message: message.value.message,
                     type: message.value.type
@@ -178,7 +179,7 @@ function get_check(testbed,req,res) {
     });
 }
 
-function get_clear(testbed,req,res) {
+function get_clear(testbed,render,req,res) {
     const sessionId = req.cookies.GRAPH_LAYER_SESSID;
 
     if (!sessionId) {
@@ -215,7 +216,7 @@ function get_clear(testbed,req,res) {
 
             if (message.type == "success") {
                 res.clearCookie("GRAPH_LAYER_SESSID");
-                testbed.render(req,res,"Logout","clear",{
+                render(req,res,"Logout","clear",{
                     logoutUrl: message.value.logoutUrl
                 });
             }
@@ -232,7 +233,7 @@ function get_clear(testbed,req,res) {
     });
 }
 
-function get_userinfo(testbed,req,res) {
+function get_userinfo(testbed,render,req,res) {
     const sessionId = req.cookies.GRAPH_LAYER_SESSID;
 
     if (!sessionId) {
@@ -249,7 +250,7 @@ function get_userinfo(testbed,req,res) {
             action: "userInfo",
             appId: app.id,
             sessionId,
-            select: ['id','displayName','mail','onPremisesSamAccountName']
+            select: ["id","displayName","mail","onPremisesSamAccountName"]
         };
 
         sock.write(JSON.stringify(message) + "\n");
@@ -272,7 +273,7 @@ function get_userinfo(testbed,req,res) {
                 return;
             }
 
-            testbed.render(req,res,"User Info","userinfo",{
+            render(req,res,"User Info","userinfo",{
                 result: message.value
             });
         }
@@ -280,14 +281,27 @@ function get_userinfo(testbed,req,res) {
 }
 
 module.exports = {
-    title: 'Standard Tests',
+    standard: {
+        title: 'Standard',
 
-    routes: [
-        ['/',get_index],
-        ['/auth',get_auth,'Perform login'],
-        ['/callback',get_callback],
-        ['/check',get_check,'Check authentication'],
-        ['/clear',get_clear,'Perform logout'],
-        ['/userinfo',get_userinfo,'Get user information']
-    ]
+        static: [
+            [null,path.join(__dirname,"public")]
+        ],
+
+        routes: [
+            ['/',get_index],
+        ]
+    },
+
+    token: {
+        title: 'Token Endpoint (Built-in)',
+
+        routes: [
+            ['/auth',get_auth,'Perform login'],
+            ['/callback',get_callback],
+            ['/check',get_check,'Check authentication'],
+            ['/clear',get_clear,'Perform logout'],
+            ['/userinfo',get_userinfo,'Get user information']
+        ]
+    }
 };

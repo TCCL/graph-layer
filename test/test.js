@@ -6,5 +6,26 @@
 
 const { Testbed } = require("./");
 
-const testbed = new Testbed();
-testbed.start().catch(console.error);
+async function main(args) {
+    const options = {
+        plugins: []
+    };
+
+    for (const pluginSpec of args) {
+        const [ moduleName, key ] = pluginSpec.split(":");
+
+        const module = require(moduleName);
+
+        if (key) {
+            options.plugins.push(module[key]);
+        }
+        else {
+            options.plugins.push(module);
+        }
+    }
+
+    const testbed = new Testbed(options);
+    await testbed.start();
+}
+
+main(process.argv.slice(2)).catch(console.error);
