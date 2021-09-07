@@ -1,20 +1,30 @@
-<p>Click <a href="/auth">here</a> to log in.</p>
-<p>Click <a href="/check">here</a> to perform a check.</p>
-<p>Click <a href="/clear">here</a> to perform a logout.</p>
-<p>Click <a href="/userinfo">here</a> to query user info.</p>
-<div class="cookies">
-  <table>
-    <thead>
-      <th>Cookie</th>
-      <th>Value</th>
-    </thead>
-    <tbody>
-      <% for (const key in cookies) { %>
-      <tr>
-      <td><%= key %></td>
-      <td><code><%= cookies[key] %></code></td>
-      </tr>
+<div class="index">
+  <div class="links">
+  <% for (const [ title, entries ] of links) { %>
+    <div class="links-section">
+      <h3><%= title %></h3>
+      <ul>
+      <% for (const { route, linkText } of entries) { %>
+        <li><a href="<%= route %>"><%= linkText %></a></li>
       <% } %>
-    </tbody>
-  </table>
+      </ul>
+    </div>
+  <% } %>
+  </div>
+  <div class="cookies">
+    <table>
+      <thead>
+        <th>Cookie</th>
+        <th>Value</th>
+      </thead>
+      <tbody>
+        <% for (const key in cookies) { %>
+        <tr>
+        <td><%= key %></td>
+        <td><code><%= cookies[key] %></code></td>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
 </div>

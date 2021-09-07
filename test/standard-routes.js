@@ -9,7 +9,10 @@ const querystring = require("querystring");
 const { JsonMessage } = require("../src/helpers");
 
 function get_index(testbed,req,res) {
-    testbed.render(req,res,"","index",{ cookies: req.cookies });
+    testbed.render(req,res,"","index",{
+        cookies: req.cookies,
+        links: testbed.links
+    });
 }
 
 function get_auth(testbed,req,res) {
@@ -277,12 +280,14 @@ function get_userinfo(testbed,req,res) {
 }
 
 module.exports = {
+    title: 'Standard Tests',
+
     routes: [
         ['/',get_index],
-        ['/auth',get_auth],
+        ['/auth',get_auth,'Perform login'],
         ['/callback',get_callback],
-        ['/check',get_check],
-        ['/clear',get_clear],
-        ['/userinfo',get_userinfo]
+        ['/check',get_check,'Check authentication'],
+        ['/clear',get_clear,'Perform logout'],
+        ['/userinfo',get_userinfo,'Get user information']
     ]
 };

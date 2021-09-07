@@ -27,6 +27,8 @@ class Testbed {
             this.options.plugins = [];
         }
         this.options.plugins.unshift(require("./standard-routes"));
+
+        this.links = [];
     }
 
     async start() {
@@ -60,9 +62,19 @@ class Testbed {
             }
 
             if (plugin.routes) {
+                const linksEntry = [plugin.title || '???',[]];
+                const links = linksEntry[1];
+
+                this.links.push(linksEntry);
                 for (let i = 0;i < plugin.routes.length;++i) {
-                    const [ route, handler ] = plugin.routes[i];
+                    const [ route, handler, linkText ] = plugin.routes[i];
                     app.get(route,this._makeHandlerFunction(handler));
+                    if (linkText) {
+                        links.push({
+                            route,
+                            linkText
+                        });
+                    }
                 }
             }
 
