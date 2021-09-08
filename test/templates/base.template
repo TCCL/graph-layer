@@ -7,7 +7,7 @@
     <title>graph-layer testbed</title>
     <% } %>
     <link rel="stylesheet" href="/app.css">
-    <% for (const styleSheet in styles) { %>
+    <% for (const styleSheet of styles) { %>
     <link rel="stylesheet" href="<%= styleSheet %>">
     <% } %>
   </head>
@@ -24,7 +24,7 @@
       <% } %>
     </div>
     <script src="/app.js"></script>
-    <% for (const script in scripts) { %>
+    <% for (const script of scripts) { %>
     <script src="<%= script %>"></script>
     <% } %>
   </body>
