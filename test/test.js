@@ -4,6 +4,8 @@
  * @tccl/graph-layer/test
  */
 
+const path = require("path");
+
 const { Testbed } = require("./");
 
 async function main(args) {
@@ -11,10 +13,11 @@ async function main(args) {
         plugins: []
     };
 
+    const cwd = process.cwd();
     for (const pluginSpec of args) {
         const [ moduleName, key ] = pluginSpec.split(":");
 
-        const module = require(moduleName);
+        const module = require(path.resolve(cwd,moduleName));
 
         if (key) {
             options.plugins.push(module[key]);
