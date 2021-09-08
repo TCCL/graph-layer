@@ -43,7 +43,6 @@ class Testbed {
 
         // Include static files and routes from plugins. This will at least
         // integrate the standard routes providing the core graph-layer tests.
-        this.templateViews = ['./test/templates'];
         this.options.plugins.forEach((plugin) => {
             if (plugin.static) {
                 for (let i = 0;i < plugin.static.length;++i) {
@@ -64,12 +63,13 @@ class Testbed {
 
                 for (let i = 0;i < plugin.routes.length;++i) {
                     const [ route, handler, linkText ] = plugin.routes[i];
-                    const handlerfn = this._makeHandlerFunction(
+                    const service = new TestbedService(
+                        this,
                         handler,
-                        plugin.assets || {}
+                        plugin
                     );
 
-                    app.get(route,handlerfn);
+                    app.get(route,service.makeHandlerFunc());
 
                     if (linkText) {
                         links.push({
@@ -82,10 +82,6 @@ class Testbed {
                 if (links.length > 0) {
                     this.links.push(linksEntry);
                 }
-            }
-
-            if (plugin.templatePath) {
-                this.templateViews.push(plugin.templatePath);
             }
         });
 
@@ -103,10 +99,45 @@ class Testbed {
         this.config = new Config();
         this.server = null;
     }
+}
+
+class TestbedService {
+    constructor(testbed,handler,plugin) {
+        this.testbed = testbed;
+        this.handler = handler;
+        this.templateViews = [];
+        this.defaultAssets = {
+            styles: [],
+            scripts: []
+        };
+
+        if (plugin.templatePath) {
+            this.templateViews.push(plugin.templatePath);
+        }
+        if (plugin.assets) {
+            this.defaultAssets.styles = plugin.assets.styles || [];
+            this.defaultAssets.scripts = plugin.assets.scripts || [];
+        }
+    }
+
+    makeHandlerFunc() {
+        return (req,res) => {
+            let query = querystring.stringify(req.query);
+            if (query) {
+                query = "?" + query;
+            }
+
+            this.log("REQ","%s - %s %s%s",req.ip,req.method,req.path,query);
+
+            return this.handler(this,req,res);
+        };
+    }
 
     connect() {
-        const app = this.config.get("apps")[0]; // use first
-        const [ port, host ] = this.config.get("tokenEndpoint").get("port","host");
+        const config = this.testbed.config;
+
+        const app = config.get("apps")[0]; // use first
+        const [ port, host ] = config.get("tokenEndpoint").get("port","host");
 
         const sock = new net.Socket();
         sock.setEncoding("utf8");
@@ -121,13 +152,23 @@ class Testbed {
             views: this.templateViews
         };
 
+        let css = styles || [];
+        let js = scripts || [];
+
+        if (this.defaultAssets.styles) {
+            css = this.defaultAssets.styles.concat(css);
+        }
+        if (this.defaultAssets.scripts) {
+            js = this.defaultAssets.scripts.concat(js);
+        }
+
         const content = contentName + '.template';
         const data = {
             title,
             content,
             vars: vars || {},
-            styles: [],
-            scripts: [],
+            styles: css,
+            scripts: js,
             index: ( req.path == '/' )
         };
 
@@ -156,37 +197,10 @@ class Testbed {
         return printed;
     }
 
-    send_error(res,message,...args) {
+    send_error(req,res,message,...args) {
         const error = this.log("ERROR",message,...args);
         res.status(500);
-        this.render(res,"Server Error","error",{ error });
-    }
-
-    _makeHandlerFunction(handler,defaultAssets) {
-        const renderfn = (req,res,title,contentName,vars,styles,scripts,cb) => {
-            let css = styles || [];
-            let js = scripts || [];
-
-            if (defaultAssets.styles) {
-                css = defaultAssets.styles.concat(css);
-            }
-            if (defaultAssets.scripts) {
-                js = defaultAssets.scripts.concat(js);
-            }
-
-            this.render(req,res,title,contentName,vars,css,js,cb);
-        };
-
-        return (req,res) => {
-            let query = querystring.stringify(req.query);
-            if (query) {
-                query = "?" + query;
-            }
-
-            this.log("REQ","%s - %s %s%s",req.ip,req.method,req.path,query);
-
-            return handler(this,renderfn,req,res);
-        };
+        this.render(req,res,"Server Error","error",{ error });
     }
 }
 
