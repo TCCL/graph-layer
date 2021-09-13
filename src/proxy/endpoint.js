@@ -10,6 +10,7 @@ const { Minimatch } = require("minimatch");
 const { ResponseType } = require("@microsoft/microsoft-graph-client");
 
 const { Client } = require("../client");
+const { unixtime } = require("../helpers");
 
 const HEADER_BLACKLIST = [
     "server"
@@ -55,11 +56,12 @@ function makePathPrefix(basePath) {
 }
 
 class ProxyEndpoint {
-    constructor(tokenManager,config,_options) {
+    constructor(services,_options) {
         const options = _options || {};
 
-        this.tokenManager = tokenManager;
-        this.config = config.get("proxyEndpoint");
+        this.logger = services.logger;
+        this.tokenManager = services.manager;
+        this.config = services.config.get("proxyEndpoint");
         this.server = null;
 
         const [
@@ -109,6 +111,27 @@ class ProxyEndpoint {
     }
 
     proxy(req,res,next) {
+        const log = {
+            client: req.ip,
+            start: unixtime(),
+            end: null,
+            requestMethod: req.method,
+            requestUri: req.params[0],
+            status: 0,
+            responseSize: 0,
+            responseTime: 0
+        };
+
+        res.on("finish",() => {
+            const dt = new Date();
+
+            log.status = res.statusCode;
+            log.end = unixtime();
+            log.responseTime = log.end - log.start;
+
+            this.logger.proxyLog(dt,log);
+        });
+
         // Pull session ID (i.e. token ID) from cookies.
         const sessionId = req.cookies[this.cookieName];
         if (!sessionId) {
@@ -146,7 +169,9 @@ class ProxyEndpoint {
             }
 
             // Transfer response body.
-            graphResponse.body.pipe(res);
+            graphResponse.body.on("data",(chunk) => {
+                log.responseSize += chunk.length;
+            }).pipe(res);
 
         }).catch((err) => {
             console.error(err);

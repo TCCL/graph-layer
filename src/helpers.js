@@ -56,6 +56,12 @@ class JsonMessage {
     }
 }
 
+function unixtime(datetime) {
+    const dt = datetime || new Date();
+    return Math.floor(dt.getTime() / 1000);
+}
+
 module.exports = {
-    JsonMessage
+    JsonMessage,
+    unixtime
 };

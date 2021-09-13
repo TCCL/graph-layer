@@ -10,8 +10,8 @@ const { Token } = require("./token");
  * Manages application and API token associations.
  */
 class TokenManager {
-    constructor(config) {
-        this.config = config;
+    constructor(services) {
+        this.config = services.config;
         this.server = null;
 
         const tokenEndpoint = this.config.get("tokenEndpoint");

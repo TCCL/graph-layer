@@ -109,5 +109,26 @@
     /**
      * Path to SQLite storage database file.
      */
-    "storage": "./store.db"
+    "storage": "./store.db",
+
+    /**
+     * Configure logging settings.
+     */
+    "logging": {
+        /**
+         * Defines the type of logging to perform. Valid options include:
+         *  - storage: Use the SQLite storage file to store logs
+         *  - stdio: Write logs to standard output
+         *
+         * NOTE: You may combine options with a "+" character.
+         */
+        "type": "storage",
+
+        /**
+         * The number of days "storage" log entries are allowed to live before
+         * being automatically deleted. Set to 0 or comment-out to disable
+         * cleanup.
+         */
+        "duration": 30
+    }
 }

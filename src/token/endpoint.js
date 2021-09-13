@@ -18,11 +18,11 @@ const { Client } = require("../client");
  * Implements a net.Server that provides the token endpoint.
  */
 class TokenEndpoint extends net.Server {
-    constructor(manager) {
+    constructor(services) {
         super();
 
-        this.config = manager.config;
-        this.manager = manager;
+        this.config = services.config;
+        this.manager = services.manager;
         this.cleanupInterval = null;
 
         this.sessions = new Map();
