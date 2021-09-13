@@ -89,12 +89,25 @@
          * The list of IP addresses that are allowed to connect to the token
          * endpoint.
          */
-        "whitelist": "0.0.0.0/0"
+        "whitelist": "0.0.0.0/0",
+
+        /**
+         * The interval (in seconds) between calls to the token cleanup routine.
+         */
+        "cleanupInterval": 3600,
+
+        /**
+         * The number of days after expiration before a token is removed from
+         * persistant storage.
+         *
+         * NOTE: Since tokens may be refreshed, you may want to keep this
+         * further out depending on how persistent your application session is.
+         */
+        "expireDays": 15
     },
 
     /**
      * Path to SQLite storage database file.
      */
     "storage": "./store.db"
-
 }

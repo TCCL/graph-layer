@@ -33,8 +33,21 @@ class TokenEndpoint extends net.Server {
             throw new Error("TokenEndpoint is already started");
         }
 
-        const [ port, host, whitelist ] = this.config.get("tokenEndpoint")
-              .get("port","host","whitelist");
+        const [ port, host, whitelist, cleanupInterval ] = this.config.get("tokenEndpoint")
+              .get("port","host","whitelist","cleanupInterval");
+
+        if (typeof host != "string"
+            || host == ""
+            || typeof port != "number"
+            || port <= 0
+            || port > 65535)
+        {
+            throw new ErrorF("Invalid TCP config for 'tokenEndpoint': '%s:%d'",host,port);
+        }
+
+        if (typeof cleanupInterval != "number" || cleanupInterval < 1) {
+            throw new ErrorF("Cleanup interval '%d' is invalid",cleanupInterval);
+        }
 
         // Convert whitelist items into IPCIDR instances. Only keep an instance
         // if itwas valid. This allows us to match both singular ip addresses
@@ -72,12 +85,8 @@ class TokenEndpoint extends net.Server {
 
         this.listen(port,host);
 
-        this.cleanupInterval = setInterval(
-            () => {
-                this.manager.cleanup();
-            },
-            3600
-        );
+        const cleanupfn = this.manager.cleanup.bind(this.manager);
+        this.cleanupInterval = setInterval(cleanupfn,cleanupInterval * 1000);
         this.manager.cleanup();
     }
 

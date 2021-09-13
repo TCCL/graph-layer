@@ -13,6 +13,15 @@ class TokenManager {
     constructor(config) {
         this.config = config;
         this.server = null;
+
+        const tokenEndpoint = this.config.get("tokenEndpoint");
+        this.expireDays = tokenEndpoint.get("expireDays");
+        if (typeof this.expireDays != "number" || this.expireDays < 1) {
+            throw new Errorf(
+                "Invalid 'tokenEndpoint'.'expireDays' value: %s",
+                this.expireDays
+            );
+        }
     }
 
     get(id) {
@@ -152,7 +161,7 @@ class TokenManager {
                     tokenObj
                 );
 
-                if (token.isExpiredByDays(15)) {
+                if (token.isExpiredByDays(this.expireDays)) {
                     rm.push(record.tokenId);
                 }
             }
