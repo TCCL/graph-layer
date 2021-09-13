@@ -134,6 +134,8 @@ class ProxyEndpoint {
 
         // Do proxy.
         this.graphAPI(sessionId,req).then((graphResponse) => {
+            res.status(graphResponse.status);
+
             // Transfer headers.
             for (const name of graphResponse.headers.keys()) {
                 if (HEADER_BLACKLIST.indexOf(name) >= 0) {
