@@ -5,6 +5,7 @@
  */
 
 const { Token } = require("./token");
+const { TokenError } = require("./error");
 
 /**
  * Manages application and API token associations.
@@ -65,7 +66,7 @@ class TokenManager {
     async getToken(id) {
         const { appId, isUser, token: tokenValue } = this.get(id);
         if (!tokenValue) {
-            throw new ErrorF("Token having id='%s' does not exist",id);
+            throw new TokenError("Token having id='%s' does not exist",id);
         }
 
         const token = new Token(id,appId,isUser,tokenValue);
@@ -73,7 +74,7 @@ class TokenManager {
         if (token.isExpired()) {
             const success = await token.refresh(this);
             if (!success) {
-                throw new ErrorF("Token is expired and cannot be refreshed");
+                throw new TokenError("Token is expired and cannot be refreshed");
             }
         }
 

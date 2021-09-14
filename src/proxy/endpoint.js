@@ -10,7 +10,8 @@ const { Minimatch } = require("minimatch");
 const { ResponseType } = require("@microsoft/microsoft-graph-client");
 
 const { Client } = require("../client");
-const { unixtime } = require("../helpers");
+const { unixtime, handleError } = require("../helpers");
+const { TokenError } = require("../token/error");
 
 const HEADER_BLACKLIST = [
     "server"
@@ -36,11 +37,27 @@ function listMatches(endpoint) {
     return (mm) => mm.match(endpoint);
 }
 
+function unauthorized(req,res,next) {
+    res.status(401).json({
+        status: 401,
+        error: "Not Authorized",
+        message: "The graph-layer session is not active."
+    });
+}
+
 function notFound(req,res,next) {
     res.status(404).json({
         status: 404,
         error: "Not Found",
         message: "The resource you requested does not exist"
+    });
+}
+
+function serverError(req,res,next) {
+    res.status(500).json({
+        status: 500,
+        error: "Server Error",
+        message: "An error occurred on the server while processing the request."
     });
 }
 
@@ -135,12 +152,7 @@ class ProxyEndpoint {
         // Pull session ID (i.e. token ID) from cookies.
         const sessionId = req.cookies[this.cookieName];
         if (!sessionId) {
-            res.status(401).json({
-                status: 401,
-                error: "Not Authorized",
-                message: "The graph-layer session is not active."
-            });
-
+            unauthorized(req,res,next);
             return;
         }
 
@@ -174,12 +186,13 @@ class ProxyEndpoint {
             }).pipe(res);
 
         }).catch((err) => {
-            console.error(err);
-            res.status(500).json({
-                status: 500,
-                error: "Server Error",
-                message: "An error occurred on the server while processing the request."
-            });
+            if (err instanceof TokenError) {
+                unauthorized(req,res,next);
+            }
+            else {
+                serverError(req,res,next);
+                handleError(err);
+            }
         });
     }
 

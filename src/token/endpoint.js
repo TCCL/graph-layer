@@ -13,6 +13,7 @@ const { Token } = require("./token");
 const { TokenError, EndpointError } = require("./error");
 const { ConnectionHandler } = require("./handler");
 const { Client } = require("../client");
+const { handleError } = require("../helpers");
 
 /**
  * Implements a net.Server that provides the token endpoint.
@@ -137,8 +138,8 @@ class TokenEndpoint extends net.Server {
                 uri: url
             });
         }).catch((err) => {
-            console.error(err);
             handler.writeError("Failed to initiate authentication");
+            handleError(err);
         });
     }
 

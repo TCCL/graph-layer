@@ -4,11 +4,11 @@
  * @tccl/graph-layer
  */
 
-class TokenError extends ErrorF {
+class TokenError extends GraphLayerError {
 
 }
 
-class EndpointError extends ErrorF {
+class EndpointError extends GraphLayerError {
 
 }
 

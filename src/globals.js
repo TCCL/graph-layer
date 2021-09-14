@@ -11,3 +11,7 @@ global.ErrorF = class extends Error {
         super(format(fmt,...args));
     }
 };
+
+global.GraphLayerError = class extends ErrorF {
+
+};

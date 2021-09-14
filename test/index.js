@@ -192,7 +192,7 @@ class TestbedService {
 
     log(heading,message,...args) {
         const printed = format(message,...args);
-        const error = format("[grap-layer/test:%s] %s",heading,printed);
+        const error = format("[graph-layer/test:%s] %s",heading,printed);
         console.error(error);
         return printed;
     }

@@ -61,7 +61,15 @@ function unixtime(datetime) {
     return Math.floor(dt.getTime() / 1000);
 }
 
+function handleError(err) {
+    console.error(err);
+    if (!(err instanceof GraphLayerError)) {
+        process.exit(1);
+    }
+}
+
 module.exports = {
     JsonMessage,
-    unixtime
+    unixtime,
+    handleError
 };

@@ -7,6 +7,7 @@
 const path = require("path");
 
 const { Testbed } = require("./");
+const { handleError } = require("../src/helpers");
 
 async function main(args) {
     const options = {
@@ -31,4 +32,4 @@ async function main(args) {
     await testbed.start();
 }
 
-main(process.argv.slice(2)).catch(console.error);
+main(process.argv.slice(2)).catch(handleError);
