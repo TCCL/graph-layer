@@ -28,3 +28,27 @@ td, th {
   padding: 0.5rem;
   text-align: left;
 }
+
+.content-wrapper > .content {
+  margin-left: 0.75em;
+  padding: 0.25em 0.25em 0.25em 0.75em;
+  border-left: 3px solid #eee;
+}
+
+.index > .cookies {
+  margin-left: 2em;
+}
+
+.index > .links {
+  padding: 0.5em;
+  border: 1px solid #111;
+  border-radius: 1em;
+  margin: 0.75em;
+}
+
+.index > .links > .links-section {
+  border-bottom: 1px solid #ddd;
+}
+.index > .links > .links-section:last-child {
+  border-bottom: none;
+}

@@ -1,3 +1,2 @@
 <p>The authentication process completed successfully.</p>
 <p>Session ID: <code><%= sessionId %></code></p>
-<p>Click <a href="/">here</a> to continue.</p>

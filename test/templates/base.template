@@ -1,8 +1,15 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <title>graph-layer test</title>
+    <% if (title) { %>
+    <title><%= title %> | graph-layer testbed</title>
+    <% } else { %>
+    <title>graph-layer testbed</title>
+    <% } %>
     <link rel="stylesheet" href="/app.css">
+    <% for (const styleSheet of styles) { %>
+    <link rel="stylesheet" href="<%= styleSheet %>">
+    <% } %>
   </head>
   <body>
     <div class="content-wrapper">
@@ -11,7 +18,14 @@
       <div class="content">
         <%- include(content,vars) %>
       </div>
+      <% if (!index) { %>
+        <hr>
+        <p>Click <a href="/">here</a> to go back to the home page.</p>
+      <% } %>
     </div>
     <script src="/app.js"></script>
+    <% for (const script of scripts) { %>
+    <script src="<%= script %>"></script>
+    <% } %>
   </body>
 </html>

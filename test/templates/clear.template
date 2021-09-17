@@ -1,3 +1,2 @@
 <p>The token was deleted via the 'clear' operation.</p>
 <p>Click <a href="<%= logoutUrl %>">here</a> to logout of Microsoft services.</p>
-<p>Click <a href="/">here</a> to continue.</p>

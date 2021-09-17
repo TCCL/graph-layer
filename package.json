@@ -28,15 +28,16 @@
     "@microsoft/microsoft-graph-client": "^2.2.1",
     "better-sqlite3": "^7.3.1",
     "comment-json": "^4.1.0",
+    "cookie-parser": "^1.4.5",
     "express": "^4.17.1",
     "ip-cidr": "^2.1.4",
     "isomorphic-fetch": "^3.0.0",
+    "minimatch": "^3.0.4",
     "openid-client": "^4.7.3",
     "uuid": "^8.3.2",
     "yargs": "^17.0.1"
   },
   "devDependencies": {
-    "cookie-parser": "^1.4.5",
     "ejs": "^3.1.6"
   }
 }

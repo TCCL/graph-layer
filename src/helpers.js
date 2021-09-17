@@ -56,6 +56,20 @@ class JsonMessage {
     }
 }
 
+function unixtime(datetime) {
+    const dt = datetime || new Date();
+    return Math.floor(dt.getTime() / 1000);
+}
+
+function handleError(err) {
+    console.error(err);
+    if (!(err instanceof GraphLayerError)) {
+        process.exit(1);
+    }
+}
+
 module.exports = {
-    JsonMessage
+    JsonMessage,
+    unixtime,
+    handleError
 };

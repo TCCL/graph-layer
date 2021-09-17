@@ -5,14 +5,24 @@
  */
 
 const { Token } = require("./token");
+const { TokenError } = require("./error");
 
 /**
  * Manages application and API token associations.
  */
 class TokenManager {
-    constructor(config) {
-        this.config = config;
+    constructor(services) {
+        this.config = services.config;
         this.server = null;
+
+        const tokenEndpoint = this.config.get("tokenEndpoint");
+        this.expireDays = tokenEndpoint.get("expireDays");
+        if (typeof this.expireDays != "number" || this.expireDays < 1) {
+            throw new Errorf(
+                "Invalid 'tokenEndpoint'.'expireDays' value: %s",
+                this.expireDays
+            );
+        }
     }
 
     get(id) {
@@ -47,6 +57,28 @@ class TokenManager {
         }
 
         return { appId, isUser: Boolean(isUser), token };
+    }
+
+    /**
+     * Obtain access token by ID. This is a high-level variant that ensures the
+     * token is not expired.
+     */
+    async getToken(id) {
+        const { appId, isUser, token: tokenValue } = this.get(id);
+        if (!tokenValue) {
+            throw new TokenError("Token having id='%s' does not exist",id);
+        }
+
+        const token = new Token(id,appId,isUser,tokenValue);
+
+        if (token.isExpired()) {
+            const success = await token.refresh(this);
+            if (!success) {
+                throw new TokenError("Token is expired and cannot be refreshed");
+            }
+        }
+
+        return token;
     }
 
     set(id,appId,isUser,token) {
@@ -130,7 +162,7 @@ class TokenManager {
                     tokenObj
                 );
 
-                if (token.isExpiredByDays(15)) {
+                if (token.isExpiredByDays(this.expireDays)) {
                     rm.push(record.tokenId);
                 }
             }

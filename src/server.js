@@ -4,39 +4,35 @@
  * @tccl/graph-layer
  */
 
-const express = require("express");
-
+const { Logger } = require("./logger");
+const { ProxyEndpoint } = require("./proxy");
 const { TokenManager, TokenEndpoint } = require("./token");
 
 class Server {
-    constructor(config) {
+    constructor(config,_options) {
+        const options = _options || {};
+
         this.config = config;
-        this.app = express();
-        this.server = null;
-        this.manager = new TokenManager(config);
-        this.tokenEndpoint = new TokenEndpoint(this.manager);
+        this.logger = new Logger(this);
+        this.manager = new TokenManager(this);
+        this.proxyEndpoint = new ProxyEndpoint(this,options);
+        this.tokenEndpoint = new TokenEndpoint(this);
     }
 
     start() {
-        if (this.server) {
-            return;
-        }
-
-        const [ port, host ] = this.config.get("port","host");
-        this.server = this.app.listen(port,host);
-
+        this.logger.start();
+        this.proxyEndpoint.start();
         this.tokenEndpoint.start();
     }
 
     stop() {
-        if (!this.server) {
-            return;
-        }
-
         this.tokenEndpoint.stop();
+        this.proxyEndpoint.stop();
+        this.logger.stop();
+    }
 
-        this.server.close();
-        this.server = null;
+    getApp() {
+        return this.proxyEndpoint.app;
     }
 }
 

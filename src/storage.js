@@ -6,7 +6,7 @@
 
 const sqlite3 = require("better-sqlite3");
 
-const SCHEMA_REVISION = 1;
+const SCHEMA_REVISION = 2;
 
 const SCHEMA = [
     {
@@ -24,6 +24,22 @@ const SCHEMA = [
         ],
         updates: {},
         intro: 1
+    },
+    {
+        sql: [
+            `CREATE TABLE proxy_log (
+               entry_date TEXT,
+               client TEXT,
+               request_method TEXT,
+               request_uri TEXT,
+               status INT,
+               response_size INT,
+               response_time INT
+             )`,
+            `CREATE INDEX idx_entry_date ON proxy_log (entry_date)`
+        ],
+        updates: {},
+        intro: 2
     }
 ];
 

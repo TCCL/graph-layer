@@ -10,6 +10,7 @@ const { hideBin } = require("yargs/helpers");
 require("./globals");
 const { Config } = require("./config");
 const { Server } = require("./server");
+const { handleError } = require("./helpers");
 
 function start(argv) {
     const config = new Config();
@@ -24,9 +25,7 @@ function start(argv) {
         process.once("SIGQUIT",stop);
         process.once("SIGTERM",stop);
 
-    }).catch((err) => {
-        console.error(err);
-    });
+    }).catch(handleError);
 }
 
 yargs(hideBin(process.argv))
