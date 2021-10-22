@@ -10,7 +10,7 @@ const { Minimatch } = require("minimatch");
 const { ResponseType } = require("@microsoft/microsoft-graph-client");
 
 const { Client } = require("../client");
-const { unixtime, handleError } = require("../helpers");
+const { unixtime, isFatalError } = require("../helpers");
 const { TokenError } = require("../token/error");
 
 const HEADER_BLACKLIST = [
@@ -191,7 +191,7 @@ class ProxyEndpoint {
             }
             else {
                 serverError(req,res,next);
-                handleError(err);
+                this.handleError(err,"Error occurred during Graph API proxy");
             }
         });
     }
@@ -249,6 +249,17 @@ class ProxyEndpoint {
         }
 
         throw new ErrorF("Graph API proxy: method '%s' is not supported");
+    }
+
+    handleError(error,context) {
+        if (context) {
+            this.logger.errorLog(context);
+        }
+        this.logger.errorLog(error);
+
+        if (isFatalError(error)) {
+            process.exit(1);
+        }
     }
 }
 

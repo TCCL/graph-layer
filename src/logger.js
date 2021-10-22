@@ -85,6 +85,12 @@ class Logger {
         this.proxyLogInsert = null;
     }
 
+    errorLog(error,...args) {
+        const dt = new Date();
+        const errorMessage = format(error,...args);
+        console.error("[graph-layer/error] [%s] %s",dt.toISOString(),errorMessage);
+    }
+
     proxyLog(dt,info) {
         const {
             client,

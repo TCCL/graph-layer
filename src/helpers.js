@@ -4,6 +4,8 @@
  * @tccl/graph-layer
  */
 
+const { AssertionError } = require("assert");
+
 class JsonMessage {
     constructor() {
         this.buffer = "";
@@ -61,15 +63,17 @@ function unixtime(datetime) {
     return Math.floor(dt.getTime() / 1000);
 }
 
-function handleError(err) {
-    console.error(err);
-    if (!(err instanceof GraphLayerError)) {
-        process.exit(1);
-    }
+function isFatalError(err) {
+    return err instanceof AssertionError
+        || err instanceof EvalError
+        || err instanceof RangeError
+        || err instanceof ReferenceError
+        || err instanceof SyntaxError
+        || err instanceof TypeError;
 }
 
 module.exports = {
     JsonMessage,
     unixtime,
-    handleError
+    isFatalError
 };

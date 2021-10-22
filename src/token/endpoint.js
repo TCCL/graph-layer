@@ -13,7 +13,7 @@ const { Token } = require("./token");
 const { TokenError, EndpointError } = require("./error");
 const { ConnectionHandler } = require("./handler");
 const { Client } = require("../client");
-const { handleError } = require("../helpers");
+const { isFatalError } = require("../helpers");
 
 /**
  * Implements a net.Server that provides the token endpoint.
@@ -24,6 +24,7 @@ class TokenEndpoint extends net.Server {
 
         this.config = services.config;
         this.manager = services.manager;
+        this.logger = services.logger;
         this.cleanupInterval = null;
 
         this.sessions = new Map();
@@ -139,7 +140,7 @@ class TokenEndpoint extends net.Server {
             });
         }).catch((err) => {
             handler.writeError("Failed to initiate authentication");
-            handleError(err);
+            this.handleError(err);
         });
     }
 
@@ -182,8 +183,8 @@ class TokenEndpoint extends net.Server {
             });
 
         }).catch((err) => {
-            console.error(err);
             handler.writeError("Failed to acquire access token");
+            this.handleError(err,"Failed to acquire access token");
         });
     }
 
@@ -349,10 +350,21 @@ class TokenEndpoint extends net.Server {
                 handler.writeError(err.toString());
             }
             else {
-                console.error(err);
                 handler.writeError("Operation failed: user info could not be queried");
+                this.handleError(err,"User info could not be queried");
             }
         });
+    }
+
+    handleError(error,context) {
+        if (context) {
+            this.logger.errorLog(context);
+        }
+        this.logger.errorLog(error);
+
+        if (isFatalError(error)) {
+            process.exit(1);
+        }
     }
 }
 
