@@ -8,6 +8,7 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const { Minimatch } = require("minimatch");
 const { ResponseType } = require("@microsoft/microsoft-graph-client");
+const querystring = require("querystring");
 
 const { Client } = require("../client");
 const { unixtime, isFatalError } = require("../helpers");
@@ -24,6 +25,15 @@ const FORWARD_HEADERS = [
     "cache-control",
     "pragma"
 ];
+
+function makeRequestUri(req) {
+    let uri = req.params[0];
+    const qs = querystring.stringify(req.query);
+    if (qs) {
+        uri += "?" + qs;
+    }
+    return uri;
+}
 
 function createList(list) {
     if (!Array.isArray(list)) {
@@ -133,7 +143,7 @@ class ProxyEndpoint {
             start: unixtime(),
             end: null,
             requestMethod: req.method,
-            requestUri: req.params[0],
+            requestUri: makeRequestUri(req),
             status: 0,
             responseSize: 0,
             responseTime: 0
