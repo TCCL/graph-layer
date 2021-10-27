@@ -83,6 +83,18 @@ class Testbed {
                     this.links.push(linksEntry);
                 }
             }
+
+            if (plugin.postRoutes) {
+                app.use(express.json());
+                app.use(express.urlencoded({ extended:true }));
+
+                for (let i = 0;i < plugin.postRoutes.length;++i) {
+                    const [ route, handler ] = plugin.postRoutes[i];
+                    const service = new TestbedService(this,handler,plugin);
+
+                    app.post(route,service.makeHandlerFunc());
+                }
+            }
         });
 
         server.start();
