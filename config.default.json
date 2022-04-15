@@ -25,7 +25,11 @@
                 "user.read"
             ],
 
-            "redirectUri": "http://localhost:8000/callback"
+            // The redirect URI used during sign in.
+            "redirectUri": "http://localhost:8000/callback",
+
+            // The post logout redirect URI used during sign out.
+            "postLogoutRedirectUri": "http://localhost:8000/"
         }
     ],
 

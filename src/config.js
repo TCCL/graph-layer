@@ -117,7 +117,8 @@ class Config {
             cloudId: appSettings.cloud_id,
             tenantId: appSettings.tenant_id,
             scopes: appSettings.userScopes,
-            redirectUri: appSettings.redirectUri
+            redirectUri: appSettings.redirectUri,
+            postLogoutRedirectUri: appSettings.postLogoutRedirectUri
         };
 
         app = new Application(appId,options);

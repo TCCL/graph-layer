@@ -64,12 +64,18 @@ class Application {
         }
 
         if (!this.client) {
-            this.client = new this.issuer.Client({
+            const options = {
                 client_id: this.options.clientId,
                 client_secret: this.options.clientSecret,
                 redirect_uris: [this.options.redirectUri],
                 response_types: ['code']
-            });
+            };
+
+            if (this.options.postLogoutRedirectUri) {
+                options.post_logout_redirect_uris = [this.options.postLogoutRedirectUri];
+            }
+
+            this.client = new this.issuer.Client(options);
         }
 
         return this.client;
