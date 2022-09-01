@@ -230,7 +230,7 @@ class ProxyEndpoint {
             return await upReq.get();
         }
 
-        if (method != "DELETE") {
+        if (downReq.method != "DELETE") {
             // Forward the Content-Type header if provided.
             const requestContentType = downReq.get("Content-Type");
             if (requestContentType) {
@@ -242,19 +242,19 @@ class ProxyEndpoint {
             upReq.option("body",downReq);
         }
 
-        if (method == "POST") {
+        if (downReq.method == "POST") {
             return await upReq.post();
         }
 
-        if (method == "PUT") {
+        if (downReq.method == "PUT") {
             return await upReq.put();
         }
 
-        if (method == "PATCH") {
+        if (downReq.method == "PATCH") {
             return await upReq.patch();
         }
 
-        if (method == "DELETE") {
+        if (downReq.method == "DELETE") {
             return await upReq.delete();
         }
 
