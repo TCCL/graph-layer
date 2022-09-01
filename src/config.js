@@ -5,11 +5,9 @@
  */
 
 const fs = require("fs");
-const { promisify: p, format } = require("util");
-const commentJSON = require("comment-json");
+const { promisify, format } = require("util");
 
-const { Application } = require("./application");
-const { Storage } = require("./storage");
+const commentJSON = require("comment-json");
 
 class ConfigObject {
     constructor(context,...parts) {
@@ -38,6 +36,23 @@ class ConfigObject {
         });
     }
 
+    toObject() {
+        const obj = {};
+        const keys = Object.keys(this.cfg);
+
+        for (let i = 0;i < keys.length;++i) {
+            const k = keys[i];
+            if (this.cfg[k] instanceof ConfigObject) {
+                obj[k] = this.cfg[k].toObject();
+            }
+            else {
+                obj[k] = this.cfg[k];
+            }
+        }
+
+        return obj;
+    }
+
     assign(vs) {
         for (const key in vs) {
             if (vs[key] !== null && vs[key].constructor === Object) {
@@ -54,8 +69,6 @@ class ConfigObject {
 class Config {
     constructor() {
         this.cfg = new ConfigObject("[Config]");
-        this.storage = null;
-        this.apps = new Map();
     }
 
     get(...keys) {
@@ -63,21 +76,18 @@ class Config {
     }
 
     async load(configFile) {
-        if (this.storage) {
-            this.storage.close();
-            this.storage = null;
-        }
-        this.apps.clear();
         this.cfg = new ConfigObject("["+configFile+"]");
 
-        const data = await p(fs.readFile)(configFile,"utf8");
+        const data = await promisify(fs.readFile)(configFile,"utf8");
         const cfg = commentJSON.parse(data,null,false);
 
-        // Create map for looking up apps entries by id.
+        // Special case: convert 'apps' section into dictionary.
         if (cfg.apps && Array.isArray(cfg.apps)) {
-            const map = new Map();
-            cfg.apps.forEach((ent) => map.set(ent.id,ent));
-            cfg.appsMap = map;
+            cfg.appsIndexed = cfg.apps;
+
+            const dict = {};
+            cfg.apps.forEach((ent) => (dict[ent.id] = ent));
+            cfg.apps = dict;
         }
 
         this.cfg.assign(cfg);
@@ -85,46 +95,8 @@ class Config {
         return this;
     }
 
-    getStorage() {
-        if (this.storage) {
-            return this.storage;
-        }
-
-        const databaseFile = this.get("storage");
-        if (typeof databaseFile !== "string" || !databaseFile) {
-            throw new ErrorF("Invalid storage file path: '%s'",databaseFile);
-        }
-
-        this.storage = new Storage(databaseFile);
-
-        return this.storage;
-    }
-
-    getApplication(appId) {
-        let app = this.apps.get(appId);
-        if (app) {
-            return app;
-        }
-
-        const appSettings = this.get("appsMap").get(appId);
-        if (!appSettings) {
-            return false;
-        }
-
-        const options = {
-            clientId: appSettings.client_id,
-            clientSecret: appSettings.client_secret,
-            cloudId: appSettings.cloud_id,
-            tenantId: appSettings.tenant_id,
-            scopes: appSettings.userScopes,
-            redirectUri: appSettings.redirectUri,
-            postLogoutRedirectUri: appSettings.postLogoutRedirectUri
-        };
-
-        app = new Application(appId,options);
-        this.apps.set(appId,app);
-
-        return app;
+    clear() {
+        this.cfg = new ConfigObject("[Config]");
     }
 }
 

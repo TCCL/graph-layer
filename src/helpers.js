@@ -72,8 +72,16 @@ function isFatalError(err) {
         || err instanceof TypeError;
 }
 
+function handleError(err) {
+    console.error(err);
+    if (isFatalError(err)) {
+        process.exit(1);
+    }
+}
+
 module.exports = {
     JsonMessage,
     unixtime,
-    isFatalError
+    isFatalError,
+    handleError
 };

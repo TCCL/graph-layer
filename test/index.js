@@ -39,7 +39,7 @@ class Testbed {
         };
 
         const server = new Server(this.config,serverOptions);
-        const app = server.getApp();
+        const app = server.getWebApp();
 
         // Include static files and routes from plugins. This will at least
         // integrate the standard routes providing the core graph-layer tests.
@@ -148,7 +148,7 @@ class TestbedService {
     connect() {
         const config = this.testbed.config;
 
-        const app = config.get("apps")[0]; // use first
+        const app = config.get("appsIndexed")[0]; // use first
         const [ port, host ] = config.get("tokenEndpoint").get("port","host");
 
         const sock = new net.Socket();

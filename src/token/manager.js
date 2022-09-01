@@ -12,11 +12,13 @@ const { TokenError } = require("./error");
  */
 class TokenManager {
     constructor(services) {
-        this.config = services.config;
+        this.config = services.getConfig();
+        this.appManager = services.getAppManager();
+        this.storage = services.getStorage();
         this.server = null;
 
-        const tokenEndpoint = this.config.get("tokenEndpoint");
-        this.expireDays = tokenEndpoint.get("expireDays");
+        const tokenEndpointConfig = this.config.get("tokenEndpoint");
+        this.expireDays = tokenEndpointConfig.get("expireDays");
         if (typeof this.expireDays != "number" || this.expireDays < 1) {
             throw new Errorf(
                 "Invalid 'tokenEndpoint'.'expireDays' value: %s",
@@ -26,8 +28,6 @@ class TokenManager {
     }
 
     get(id) {
-        const storage = this.config.getStorage();
-
         const query =
            `SELECT
               value AS 'value',
@@ -42,21 +42,21 @@ class TokenManager {
             id
         ];
 
-        const result = storage.get(query,vars);
+        const result = this.storage.get(query,vars);
         if (!result) {
             return {};
         }
 
         const { value, appId, isUser } = result;
 
-        let token;
+        let tokenInfo;
         try {
-            token = JSON.parse(value);
+            tokenInfo = JSON.parse(value);
         } catch (err) {
             throw new ErrorF("Cannot parse token for '%s'",id);
         }
 
-        return { appId, isUser: Boolean(isUser), token };
+        return { appId, isUser: Boolean(isUser), tokenInfo };
     }
 
     /**
@@ -64,25 +64,43 @@ class TokenManager {
      * token is not expired.
      */
     async getToken(id) {
-        const { appId, isUser, token: tokenValue } = this.get(id);
-        if (!tokenValue) {
+        const { appId, isUser, tokenInfo } = this.get(id);
+        if (!tokenInfo) {
             throw new TokenError("Token having id='%s' does not exist",id);
         }
 
-        const token = new Token(id,appId,isUser,tokenValue);
-
+        // Create token object and attempt refresh if expired.
+        const token = new Token(id,appId,isUser,tokenInfo);
         if (token.isExpired()) {
-            const success = await token.refresh(this);
-            if (!success) {
-                throw new TokenError("Token is expired and cannot be refreshed");
-            }
+            await this.refreshToken(token);
         }
 
         return token;
     }
 
-    set(id,appId,isUser,token) {
-        const storage = this.config.getStorage();
+    /**
+     * Attempts to refresh the indicated token object. The token object is
+     * updated in-place.
+     */
+    async refreshToken(token) {
+        // Attempt refresh of token if we have a refresh token on hand.
+        const refreshToken = token.getRefreshToken();
+        if (refreshToken) {
+            const app = this.appManager.getApplication(appId);
+            if (!app) {
+                throw new TokenError("Application '%s' is not available",appId);
+            }
+
+            const newTokenInfo = await app.acquireTokenByRefreshToken(refreshToken);
+            this.update(token.id,token.appId,token.isUser,newTokenInfo);
+            token.refresh(newTokenInfo);
+        }
+        else {
+            throw new TokenError("Token is expired and cannot be refreshed");
+        }
+    }
+
+    set(id,appId,isUser,tokenInfo) {
         const isUserValue = isUser ? 1 : 0;
 
         const query =
@@ -98,41 +116,36 @@ class TokenManager {
 
         const vars = [
             id,
-            JSON.stringify(token),
+            JSON.stringify(tokenInfo),
             appId,
             isUserValue
         ];
 
-        storage.run(query,vars);
+        this.storage.run(query,vars);
     }
 
-    update(id,appId,isUser,token) {
-        const storage = this.config.getStorage();
-        const t = storage.transaction(() => {
-            storage.run("DELETE FROM token WHERE token_id = ?",[id]);
-            this.set(id,appId,isUser,token);
+    update(id,appId,isUser,tokenInfo) {
+        const t = this.storage.transaction(() => {
+            this.storage.run("DELETE FROM token WHERE token_id = ?",[id]);
+            this.set(id,appId,isUser,tokenInfo);
         });
 
         t();
 
-        return { appId, isUser, token };
+        return { appId, isUser, tokenInfo };
     }
 
     remove(id) {
-        const storage = this.config.getStorage();
-
         const query = "DELETE FROM token WHERE token_id = ?";
         const vars = [id];
 
-        storage.run(query,vars);
+        this.storage.run(query,vars);
     }
 
     cleanup() {
-        const storage = this.config.getStorage();
-
         // Clean up any tokens that have expired.
-        const t = storage.transaction(() => {
-            const del = storage.prepare(
+        const t = this.storage.transaction(() => {
+            const del = this.storage.prepare(
                 `DELETE FROM token WHERE token_id = ?`
             );
 
@@ -146,11 +159,11 @@ class TokenManager {
                   token`;
 
             const rm = [];
-            for (const record of storage.iterate(select)) {
-                let tokenObj;
+            for (const record of this.storage.iterate(select)) {
+                let tokenInfo;
 
                 try {
-                    tokenObj = JSON.parse(record.value);
+                    tokenInfo = JSON.parse(record.value);
                 } catch (err) {
                     continue;
                 }
@@ -159,7 +172,7 @@ class TokenManager {
                     record.tokenId,
                     record.appId,
                     Boolean(record.isUser),
-                    tokenObj
+                    tokenInfo
                 );
 
                 if (token.isExpiredByDays(this.expireDays)) {

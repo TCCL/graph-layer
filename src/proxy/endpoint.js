@@ -86,9 +86,9 @@ class ProxyEndpoint {
     constructor(services,_options) {
         const options = _options || {};
 
-        this.logger = services.logger;
-        this.tokenManager = services.manager;
-        this.config = services.config.get("proxyEndpoint");
+        this.logger = services.getLogger();
+        this.tokenManager = services.getTokenManager();
+        this.config = services.getConfig().get("proxyEndpoint");
         this.server = null;
 
         const [

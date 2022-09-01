@@ -7,6 +7,7 @@
 const net = require("net");
 const crypto = require("crypto");
 const { v4: generateUUID } = require("uuid");
+
 const IPCIDR = require("ip-cidr");
 
 const { Token } = require("./token");
@@ -22,11 +23,13 @@ class TokenEndpoint extends net.Server {
     constructor(services) {
         super();
 
-        this.config = services.config;
-        this.manager = services.manager;
-        this.logger = services.logger;
+        this.config = services.getConfig();
+        this.appManager = services.getAppManager();
+        this.tokenManager = services.getTokenManager();
+        this.logger = services.getLogger();
         this.cleanupInterval = null;
 
+        // The sessions map stores temporary login sessions.
         this.sessions = new Map();
     }
 
@@ -35,8 +38,9 @@ class TokenEndpoint extends net.Server {
             throw new Error("TokenEndpoint is already started");
         }
 
-        const [ port, host, whitelist, cleanupInterval ] = this.config.get("tokenEndpoint")
-              .get("port","host","whitelist","cleanupInterval");
+        const [ port, host, whitelist, cleanupInterval ]
+              = this.config.get("tokenEndpoint")
+                           .get("port","host","whitelist","cleanupInterval");
 
         if (typeof host != "string"
             || host == ""
@@ -87,9 +91,9 @@ class TokenEndpoint extends net.Server {
 
         this.listen(port,host);
 
-        const cleanupfn = this.manager.cleanup.bind(this.manager);
+        const cleanupfn = this.tokenManager.cleanup.bind(this.tokenManager);
         this.cleanupInterval = setInterval(cleanupfn,cleanupInterval * 1000);
-        this.manager.cleanup();
+        this.tokenManager.cleanup();
     }
 
     stop() {
@@ -109,7 +113,7 @@ class TokenEndpoint extends net.Server {
         }
 
         // Get application instance.
-        const app = this.config.getApplication(message.appId);
+        const app = this.appManager.getApplication(message.appId);
         if (!app) {
             handler.writeError(
                 "No such application having ID '%s'",
@@ -167,16 +171,16 @@ class TokenEndpoint extends net.Server {
         }
 
         // Get application instance.
-        const app = this.config.getApplication(session.appId);
+        const app = this.appManager.getApplication(session.appId);
         if (!app) {
             throw new EndpointError("No such application having ID '%s'",session.appId);
         }
 
-        app.acquireTokenByCode(message.queryString).then((tokenSet) => {
+        app.acquireTokenByCode(message.queryString).then((tokenInfo) => {
             this.sessions.delete(session.sessionId);
 
             const tokenId = crypto.randomBytes(32).toString("base64");
-            this.manager.set(tokenId,session.appId,true,tokenSet);
+            this.tokenManager.set(tokenId,session.appId,true,tokenInfo);
 
             handler.writeMessage("complete",{
                 sessionId: tokenId
@@ -197,26 +201,26 @@ class TokenEndpoint extends net.Server {
             throw new EndpointError("Message missing sessionId");
         }
 
-        const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
+        const { appId, isUser, tokenInfo } = this.tokenManager.get(message.sessionId);
 
-        if (!tokenValue) {
-            throw new EndpointError("failure","No such token");
+        if (!tokenInfo) {
+            throw new EndpointError("The session is invalid: no token for session");
         }
 
         if (appId != message.appId) {
-            throw new EndpointError("App ID mismatch");
+            throw new EndpointError("The associated token does not belong to the indicated application");
         }
 
         // Only user-based tokens are allowed for a token endpoint operation. A
         // non-user token should never be queried (in practice).
         if (!isUser) {
-            throw new EndpointError("Session is invalid");
+            throw new EndpointError("The session token is invalid");
         }
 
         // Create client instance for checking token. If token is not valid,
         // attempt refresh. If the refresh fails, then we will have to fail.
 
-        const token = new Token(message.sessionId,appId,isUser,tokenValue);
+        const token = new Token(message.sessionId,appId,isUser,tokenInfo);
         if (!token.isExpired()) {
             handler.writeMessage("success",{
                 message: "Token is valid",
@@ -225,16 +229,11 @@ class TokenEndpoint extends net.Server {
             return;
         }
 
-        token.refresh(this.manager).then((success) => {
-            if (success) {
-                handler.writeMessage("success",{
-                    message: "Token is valid",
-                    type: "refresh"
-                });
-            }
-            else {
-                handler.writeMessage("failure","Token is invalid");
-            }
+        this.tokenManager.refresh(token).then(() => {
+            handler.writeMessage("success",{
+                message: "Token is valid",
+                type: "refresh"
+            });
 
         }, (err) => {
             if (err instanceof TokenError) {
@@ -242,7 +241,7 @@ class TokenEndpoint extends net.Server {
             }
             else {
                 console.error(err);
-                handler.writeError("Failed to check token");
+                handler.writeError("Check operation failed");
             }
         });
     }
@@ -256,29 +255,29 @@ class TokenEndpoint extends net.Server {
             throw new EndpointError("Message missing sessionId");
         }
 
-        const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
+        const { appId, isUser, tokenInfo } = this.tokenManager.get(message.sessionId);
 
-        if (!tokenValue) {
-            throw new EndpointError("Invalid session");
+        if (!tokenInfo) {
+            throw new EndpointError("The session is invalid: no token for session");
         }
 
         if (appId != message.appId) {
-            throw new EndpointError("App ID mismatch");
+            throw new EndpointError("The associated token does not belong to the indicated application");
         }
 
         // Only user-based tokens are allowed for a token endpoint operation. A
         // non-user token should never be queried (in practice).
         if (!isUser) {
-            throw new EndpointError("Session is invalid");
+            throw new EndpointError("The session token is invalid");
         }
 
-        const app = this.config.getApplication(appId);
+        const app = this.appManager.getApplication(appId);
         if (!app) {
             throw new EndpointError("No such application having ID '%s'",appId);
         }
 
         // Delete the token from the manager storage.
-        this.manager.remove(message.sessionId);
+        this.tokenManager.remove(message.sessionId);
 
         app.getLogoutUrl().then((logoutUrl) => {
             handler.writeMessage("success",{
@@ -290,11 +289,11 @@ class TokenEndpoint extends net.Server {
 
     doUserInfo(handler,message) {
         if (!message.appId && typeof message.appId !== "string") {
-            throw new EndpointError("Message missing appId");
+            throw new EndpointError("Protocol message missing property 'appId'");
         }
 
         if (!message.sessionId && typeof message.sessionId !== "string") {
-            throw new EndpointError("Message missing sessionId");
+            throw new EndpointError("Protocol message missing property 'sessionId'");
         }
 
         const select = message.select || [];
@@ -307,32 +306,17 @@ class TokenEndpoint extends net.Server {
             select = [select];
         }
 
-        const { appId, isUser, token: tokenValue } = this.manager.get(message.sessionId);
+        this.tokenManager.getToken(message.sessionId).then(async (token) => {
+            if (token.getAppId() != message.appId) {
+                handler.writeError("The token does not belong to the correct application.");
+                return;
+            }
 
-        if (!tokenValue) {
-            throw new EndpointError("Invalid session");
-        }
+            if (!token.isUserToken()) {
+                handler.writeError("The token is invalid");
+                return;
+            }
 
-        if (appId != message.appId) {
-            throw new EndpointError("App ID mismatch");
-        }
-
-        let getToken;
-        const token = new Token(message.sessionId,appId,isUser,tokenValue);
-        if (token.isExpired()) {
-            getToken = token.refresh(this.manager).then((success) => {
-                if (success) {
-                    return token;
-                }
-
-                throw new EndpointError("Token is expired and cannot be refreshed");
-            });
-        }
-        else {
-            getToken = Promise.resolve(token);
-        }
-
-        getToken.then(async (token) => {
             const client = new Client(token);
             const call = client.api("/me");
 
@@ -346,12 +330,12 @@ class TokenEndpoint extends net.Server {
             handler.writeMessage("success",result);
 
         }).catch((err) => {
-            if (err instanceof TokenError || err instanceof EndpointError) {
+            if (err instanceof TokenError) {
                 handler.writeError(err.toString());
             }
             else {
-                handler.writeError("Operation failed: user info could not be queried");
-                this.handleError(err,"User info could not be queried");
+                console.error(err);
+                handler.writeError("User Info operation failed");
             }
         });
     }

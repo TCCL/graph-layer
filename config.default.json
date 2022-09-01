@@ -11,11 +11,22 @@
 
             /**
              * Microsoft Graph API credentials.
+             *
+             *  tenantId: Determines which tenant is authorizing. This should
+             *  be your tenant GUID/domain for a specific organization or one
+             *  of:
+             *   - common: Work/school accounts or personal Microsoft accounts
+             *   - organizations: Work/school accounts only
+             *   - consumers: Personal Microsoft accounts only
+             *
+             *  cloudUrl: The base URL for the authentication endpoint. This
+             *  will default to https://login.microsoftonline.com if not
+             *  specified.
              */
-            "client_id": "",
-            "client_secret": "",
-            "tenant_id": "",
-            "cloud_id": "https://login.microsoftonline.com",
+            "clientId": "",
+            "clientSecret": "",
+            "tenantId": "",
+            "cloudUrl": "https://login.microsoftonline.com",
 
             /**
              * The scopes to request for access tokens associated with user

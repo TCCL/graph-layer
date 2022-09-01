@@ -10,7 +10,7 @@ const { unixtime } = require("./helpers");
 
 class Logger {
     constructor(services) {
-        this.storage = services.config.getStorage();
+        this.storage = services.getStorage();
         this.proxyLogInsert = null;
 
         // Apply options from config.
