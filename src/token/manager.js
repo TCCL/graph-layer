@@ -86,6 +86,7 @@ class TokenManager {
         // Attempt refresh of token if we have a refresh token on hand.
         const refreshToken = token.getRefreshToken();
         if (refreshToken) {
+            const appId = token.getAppId();
             const app = this.appManager.getApplication(appId);
             if (!app) {
                 throw new TokenError("Application '%s' is not available",appId);

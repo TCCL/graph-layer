@@ -70,7 +70,7 @@ class ApplicationWrapper {
             scopes: this.scopes
         };
 
-        const authenticationResult = this.cca.acquireTokenByRefreshToken(refreshTokenRequest);
+        const authenticationResult = await this.cca.acquireTokenByRefreshToken(refreshTokenRequest);
 
         return this.makeTokenInfo(authenticationResult);
     }
@@ -113,7 +113,6 @@ class ApplicationWrapper {
         );
 
         const refreshTokenEntry = cache[cacheKey];
-        console.log(refreshTokenEntry);
         if (refreshTokenEntry) {
             refreshToken = refreshTokenEntry.secret;
         }

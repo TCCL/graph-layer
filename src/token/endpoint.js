@@ -229,7 +229,7 @@ class TokenEndpoint extends net.Server {
             return;
         }
 
-        this.tokenManager.refresh(token).then(() => {
+        this.tokenManager.refreshToken(token).then(() => {
             handler.writeMessage("success",{
                 message: "Token is valid",
                 type: "refresh"
