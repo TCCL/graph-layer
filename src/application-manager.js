@@ -80,10 +80,14 @@ class ApplicationWrapper {
             accessToken,
             expiresOn,
             familyId,
+            account,
             account: {
                 homeAccountId,
                 environment
-            }
+            },
+            scopes,
+            idToken,
+            tokenType
 
         } = authenticationResult;
         let refreshToken = null;
@@ -116,8 +120,12 @@ class ApplicationWrapper {
 
         return {
             accessToken,
+            refreshToken,
             expiresOn,
-            refreshToken
+            scopes,
+            idToken,
+            tokenType,
+            account
         };
     }
 }
