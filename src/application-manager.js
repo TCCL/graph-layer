@@ -9,33 +9,13 @@ const { format } = require("util");
 const { URL } = require("url");
 
 const msal = require("@azure/msal-node");
-
-function makeTokenInfo(authenticationResult) {
-    let {
-        accessToken,
-        expiresOn
-
-    } = authenticationResult;
-    let refreshToken = null;
-
-    // Convert expiresOn into UNIX timestamp of nearest second.
-    expiresOn = Math.round(expiresOn.getTime() / 1000);
-
-    // Obtain refresh token from the token cache. Unfortunately, MSAL does not
-    // give us this directly; it really should, since we need to implement our
-    // own token caching mechanism.
-
-    return {
-        accessToken,
-        expiresOn,
-        refreshToken
-    };
-}
+const { RefreshTokenEntity, CredentialType } = require("@azure/msal-common");
 
 class ApplicationWrapper {
     constructor(id,cca,settings) {
         this.id = id;
         this.cca = cca;
+        this.clientId = settings.clientId;
         this.cloudUrl = settings.cloudUrl;
         this.tenantId = settings.tenantId;
         this.scopes = settings.userScopes;
@@ -81,7 +61,7 @@ class ApplicationWrapper {
 
         const authenticationResult = await this.cca.acquireTokenByCode(tokenRequest);
 
-        return makeTokenInfo(authenticationResult);
+        return this.makeTokenInfo(authenticationResult);
     }
 
     async acquireTokenByRefreshToken(refreshToken) {
@@ -92,7 +72,53 @@ class ApplicationWrapper {
 
         const authenticationResult = this.cca.acquireTokenByRefreshToken(refreshTokenRequest);
 
-        return makeTokenInfo(authenticationResult);
+        return this.makeTokenInfo(authenticationResult);
+    }
+
+    makeTokenInfo(authenticationResult) {
+        let {
+            accessToken,
+            expiresOn,
+            familyId,
+            account: {
+                homeAccountId,
+                environment
+            }
+
+        } = authenticationResult;
+        let refreshToken = null;
+
+        // Convert expiresOn into UNIX timestamp of nearest second.
+        expiresOn = Math.round(expiresOn.getTime() / 1000);
+
+        // Obtain refresh token from the token cache. Unfortunately, MSAL does not
+        // give us this directly; it really should, since we need to implement our
+        // own token caching mechanism.
+
+        const cache = this.cca.getTokenCache().getKVStore();
+        const cacheKey = RefreshTokenEntity.generateCredentialCacheKey(
+            homeAccountId,
+            environment,
+            CredentialType.REFRESH_TOKEN,
+            this.clientId,
+            null, // realm
+            null, // target
+            familyId,
+            null, // tokenType
+            null // requestedClaimsHash
+        );
+
+        const refreshTokenEntry = cache[cacheKey];
+        console.log(refreshTokenEntry);
+        if (refreshTokenEntry) {
+            refreshToken = refreshTokenEntry.secret;
+        }
+
+        return {
+            accessToken,
+            expiresOn,
+            refreshToken
+        };
     }
 }
 
