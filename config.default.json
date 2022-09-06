@@ -40,7 +40,17 @@
             "redirectUri": "http://localhost:8000/callback",
 
             // The post logout redirect URI used during sign out.
-            "postLogoutRedirectUri": "http://localhost:8000/"
+            "postLogoutRedirectUri": "http://localhost:8000/",
+
+            /**
+             * The login credentials for a user account to use as the
+             * "anonymous" user. Leave NULL or with empty property values to
+             * disable the anonymous user for this application.
+             */
+            "anonymousUser": {
+                "username": "",
+                "password": ""
+            }
         }
     ],
 

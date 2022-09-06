@@ -75,6 +75,20 @@ class ApplicationWrapper {
         return this.makeTokenInfo(authenticationResult);
     }
 
+    async acquireTokenByUsernamePassword(username,password) {
+        const usernamePasswordRequest = {
+            username,
+            password,
+            scopes: this.scopes
+        };
+
+        const authenticationResult = await this.cca.acquireTokenByUsernamePassword(
+            usernamePasswordRequest
+        );
+
+        return this.makeTokenInfo(authenticationResult);
+    }
+
     makeTokenInfo(authenticationResult) {
         let {
             accessToken,

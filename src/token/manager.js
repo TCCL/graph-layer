@@ -7,6 +7,8 @@
 const { Token } = require("./token");
 const { TokenError } = require("./error");
 
+const ANONYMOUS_ID_FORMAT = '__anonymous-%s__';
+
 /**
  * Manages application and API token associations.
  */
@@ -76,6 +78,49 @@ class TokenManager {
         }
 
         return token;
+    }
+
+    /**
+     * Obtain access token for the anonymous user.
+     */
+    async getAnonymousToken(appId) {
+        const app = this.appManager.getApplication(appId);
+        if (!app) {
+            throw new TokenError("Application '%s' is not configured",appId);
+        }
+
+        // Ensure we do not use anonymous tokens if the anonymous user is
+        // disabled/not configured for the indicated application. We could have
+        // a token left over in the persistent DB from a previous invocation.
+        if (!app.anonymousUser || !app.anonymousUser.username || !app.anonymousUser.password) {
+            return false;
+        }
+
+        const id = format(ANONYMOUS_ID_FORMAT,appId);
+
+        // Try loading an existing anonymous token.
+        const { appId, isUser, tokenInfo } = this.get(id);
+        if (tokenInfo) {
+            const token = new Token(id,appId,isUser,tokenInfo);
+
+            if (token.isExpired()) {
+                const success = await token.refresh(this);
+                if (!success) {
+                    throw new TokenError("Token is expired and cannot be refreshed");
+                }
+            }
+
+            return token;
+        }
+
+        // Aquire anonymous token using configured anonymous user for
+        // application.
+
+        const { username, password } = app.anonymousUser;
+        const newTokenInfo = await app.acquireTokenByUsernamePassword(username,password);
+        this.set(id,appId,false,tokenInfo);
+
+        return new Token(id,appId,false,newTokenInfo);
     }
 
     /**
