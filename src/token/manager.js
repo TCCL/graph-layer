@@ -4,6 +4,8 @@
  * @tccl/graph-layer
  */
 
+const { format } = require("util");
+
 const { Token } = require("./token");
 const { TokenError } = require("./error");
 
@@ -93,14 +95,17 @@ class TokenManager {
         // disabled/not configured for the indicated application. We could have
         // a token left over in the persistent DB from a previous invocation.
         if (!app.anonymousUser || !app.anonymousUser.username || !app.anonymousUser.password) {
-            return false;
+            throw new TokenError(
+                "The 'anonymousUser' property is not configured for application '%s'",
+                appId
+            );
         }
 
         const id = format(ANONYMOUS_ID_FORMAT,appId);
 
         // Try loading an existing anonymous token.
-        const { appId, isUser, tokenInfo } = this.get(id);
-        if (tokenInfo) {
+        const { appId: appIdVerify, isUser, tokenInfo } = this.get(id);
+        if (tokenInfo && appId == appIdVerify) {
             const token = new Token(id,appId,isUser,tokenInfo);
 
             if (token.isExpired()) {

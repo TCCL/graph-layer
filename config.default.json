@@ -63,9 +63,19 @@
         "port": 8000,
 
         /**
-         * Cookie that contains the graph layer session ID.
+         * Cookie that contains the graph layer session ID that is used when
+         * making a graph-layer proxy request.
          */
         "cookie": "GRAPH_LAYER_SESSID",
+
+        /**
+         * Name of the HTTP request header identifies an anonymous graph-layer
+         * proxy request. The header value is the ID of the application to use
+         * for the anonymous request. The indicated application must have an
+         * anonymous user configured for this to work. Set this value to empty
+         * to disable anonymous access.
+         */
+        "anonymousHeader": null,
 
         /**
          * The base path for all Microsoft graph URIs that are proxied via the proxy

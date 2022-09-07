@@ -93,17 +93,20 @@ class ProxyEndpoint {
 
         const [
             cookieName,
+            anonymousHeaderName,
             basePath,
             whitelist,
             blacklist
         ] = this.config.get(
             "cookie",
+            "anonymousHeader",
             "basePath",
             "whitelist",
             "blacklist"
         );
 
         this.cookieName = cookieName;
+        this.anonymousHeaderName = anonymousHeaderName;
         this.basePath = basePath;
         this.whitelist = createList(whitelist);
         this.blacklist = createList(blacklist);
@@ -119,6 +122,9 @@ class ProxyEndpoint {
         }
     }
 
+    /**
+     * Starts the proxy server.
+     */
     start() {
         if (this.server) {
             return;
@@ -128,6 +134,9 @@ class ProxyEndpoint {
         this.server = this.app.listen(port,host);
     }
 
+    /**
+     * Closes and stops the proxy server.
+     */
     stop() {
         if (!this.server) {
             return;
@@ -137,6 +146,13 @@ class ProxyEndpoint {
         this.server = null;
     }
 
+    /**
+     * Handler for requests to the proxy handler.
+     *
+     * @param {object} req
+     * @param {object} res
+     * @param {function} next
+     */
     proxy(req,res,next) {
         const log = {
             client: req.ip,
@@ -159,13 +175,6 @@ class ProxyEndpoint {
             this.logger.proxyLog(dt,log);
         });
 
-        // Pull session ID (i.e. token ID) from cookies.
-        const sessionId = req.cookies[this.cookieName];
-        if (!sessionId) {
-            unauthorized(req,res,next);
-            return;
-        }
-
         // Exclude endpoints that are blacklisted or not whitelisted.
         const testfn = listMatches(req.params[0]);
         const disallow = this.blacklist.some(testfn);
@@ -177,8 +186,31 @@ class ProxyEndpoint {
             return;
         }
 
-        // Do proxy.
-        this.graphAPI(sessionId,req).then((graphResponse) => {
+        let promise;
+
+        // Figure out which proxy method to use: anonymous or session-based.
+        if (this.anonymousHeaderName && req.get(this.anonymousHeaderName)) {
+            // Pull application ID from cookies.
+            const anonAppId = req.get(this.anonymousHeaderName);
+            promise = this.proxyRequestAnonymous(anonAppId,req);
+        }
+        else if (this.cookieName in req.cookies) {
+            // Pull session ID (i.e. token ID) from cookies.
+            const sessionId = req.cookies[this.cookieName];
+            promise = this.proxyRequestWithSession(sessionId,req);
+        }
+        else {
+            unauthorized(req,res,next);
+            return;
+        }
+
+        // Do proxy of upstream request.
+        promise.then((graphResponse) => {
+            if (!graphResponse) {
+                unauthorized(req,res,next);
+                return;
+            }
+
             res.status(graphResponse.status);
 
             // Transfer headers.
@@ -201,14 +233,35 @@ class ProxyEndpoint {
             }
             else {
                 serverError(req,res,next);
-                this.handleError(err,"Error occurred during Graph API proxy");
             }
+            this.handleError(err,"Error occurred during Graph API proxy");
         });
     }
 
-    async graphAPI(sessionId,downReq) {
-        // Load token by session ID to load client instance.
+    async proxyRequestWithSession(sessionId,downReq) {
+        if (!sessionId) {
+            return null;
+        }
+
+        // Load token by session ID.
         const token = await this.tokenManager.getToken(sessionId);
+
+        return this.proxyRequest(token,downReq);
+    }
+
+    async proxyRequestAnonymous(appId,downReq) {
+        if (!appId) {
+            return null;
+        }
+
+        // Load token by application ID.
+        const token = await this.tokenManager.getAnonymousToken(appId);
+
+        return this.proxyRequest(token,downReq);
+    }
+
+    async proxyRequest(token,downReq) {
+        // Create client using indicated token.
         const client = new Client(token);
 
         // Prepare upstream request.

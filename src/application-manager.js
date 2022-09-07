@@ -21,6 +21,7 @@ class ApplicationWrapper {
         this.scopes = settings.userScopes;
         this.redirectUri = settings.redirectUri;
         this.postLogoutRedirectUri = settings.postLogoutRedirectUri;
+        this.anonymousUser = settings.anonymousUser;
     }
 
     async getAuthCodeUrl() {
