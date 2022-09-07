@@ -294,6 +294,32 @@ function get_userinfo(service,req,res) {
     });
 }
 
+function get_proxytest_user(service,req,res) {
+    const vars = {
+        proxyInfo: {
+            sessionId: req.cookies["GRAPH_LAYER_SESSID"] || null,
+            hasUserSession: "GRAPH_LAYER_SESSID" in req.cookies,
+            endpoint: "/graph/layer"
+        }
+    };
+
+    service.render(req,res,"Proxy Test (User)","proxytest",vars);
+}
+
+function get_proxytest_anon(service,req,res) {
+    const app = service.getApp();
+    
+    const vars = {
+        proxyInfo: {
+            appId: app.id,
+            hasUserSession: true,
+            endpoint: "/graph/layer"
+        }
+    };
+
+    service.render(req,res,"Proxy Test (User)","proxytest",vars);
+}
+
 module.exports = {
     standard: {
         title: 'Standard',
@@ -315,7 +341,22 @@ module.exports = {
             ['/callback',get_callback],
             ['/check',get_check,'Check authentication'],
             ['/clear',get_clear,'Perform logout'],
-            ['/userinfo',get_userinfo,'Get user information']
+            ['/userinfo',get_userinfo,'Get user information'],
         ]
+    },
+
+    proxy: {
+        title: 'Proxy',
+
+        routes: [
+            ['/proxy-test/user',get_proxytest_user,'Test proxy endpoint (user-based token)'],
+            ['/proxy-test/anon',get_proxytest_anon,'Test proxy endpoint (anonymous token)']
+        ],
+
+        assets: {
+            scripts: [
+                "/proxy.js"
+            ]
+        }
     }
 };

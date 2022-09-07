@@ -22,11 +22,14 @@ class Testbed {
         this.config = new Config();
         this.server = null;
 
+        const stdRoutes = require("./standard-routes");
+
         if (!this.options.plugins) {
             this.options.plugins = [];
         }
-        this.options.plugins.unshift(require("./standard-routes").token);
-        this.options.plugins.unshift(require("./standard-routes").standard);
+        this.options.plugins.unshift(stdRoutes.proxy);
+        this.options.plugins.unshift(stdRoutes.token);
+        this.options.plugins.unshift(stdRoutes.standard);
 
         this.links = [];
     }
@@ -143,6 +146,13 @@ class TestbedService {
 
             return this.handler(this,req,res);
         };
+    }
+
+    getApp() {
+        const config = this.testbed.config;
+        const app = config.get("appsIndexed")[0]; // use first
+
+        return app;
     }
 
     connect() {
