@@ -12,12 +12,38 @@ const msal = require("@azure/msal-node");
 const { RefreshTokenEntity, CredentialType } = require("@azure/msal-common");
 
 class ApplicationWrapper {
-    constructor(id,cca,settings) {
+    constructor(id,settings) {
+        const authority = format(
+            "%s/%s",
+            settings.cloudUrl || "",
+            settings.tenantId
+        );
+
+        const clientConfig = {
+            auth: {
+                clientId: settings.clientId,
+                authority
+            }
+        };
+
+        if (settings.clientSecret) {
+            clientConfig.auth.clientSecret = settings.clientSecret;
+        }
+        else if (settings.clientCertificate) {
+            clientConfig.auth.clientCertificate = settings.clientCertificate;
+        }
+        else if (settings.clientAssertion) {
+            clientConfig.auth.clientAssertion = settings.clientAssertion;
+        }
+
+        const cca = new msal.ConfidentialClientApplication(clientConfig);
+
         this.id = id;
         this.cca = cca;
         this.clientId = settings.clientId;
         this.cloudUrl = settings.cloudUrl;
         this.tenantId = settings.tenantId;
+        this.authority = authority;
         this.scopes = settings.userScopes;
         this.redirectUri = settings.redirectUri;
         this.postLogoutRedirectUri = settings.postLogoutRedirectUri;
@@ -157,32 +183,7 @@ class ApplicationManager {
         }
 
         const appSettings = this.config.get(appId).toObject();
-
-        const authorityUrl = format(
-            "%s/%s",
-            appSettings.cloudUrl || "",
-            appSettings.tenantId
-        );
-
-        const clientConfig = {
-            auth: {
-                clientId: appSettings.clientId,
-                authorityUrl
-            }
-        };
-
-        if (appSettings.clientSecret) {
-            clientConfig.auth.clientSecret = appSettings.clientSecret;
-        }
-        else if (appSettings.clientCertificate) {
-            clientConfig.auth.clientCertificate = appSettings.clientCertificate;
-        }
-        else if (appSettings.clientAssertion) {
-            clientConfig.auth.clientAssertion = appSettings.clientAssertion;
-        }
-
-        const cca = new msal.ConfidentialClientApplication(clientConfig);
-        const wrapper = new ApplicationWrapper(appId,cca,appSettings);
+        const wrapper = new ApplicationWrapper(appId,appSettings);
         this.apps.set(appId,wrapper);
 
         return wrapper;
