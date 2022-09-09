@@ -123,7 +123,7 @@ class TokenManager {
 
         const { username, password } = app.anonymousUser;
         const newTokenInfo = await app.acquireTokenByUsernamePassword(username,password);
-        this.set(id,appId,false,tokenInfo);
+        this.set(id,appId,false,newTokenInfo);
 
         return new Token(id,appId,false,newTokenInfo);
     }
@@ -219,14 +219,19 @@ class TokenManager {
                     continue;
                 }
 
-                const token = new Token(
-                    record.tokenId,
-                    record.appId,
-                    Boolean(record.isUser),
-                    tokenInfo
-                );
+                if (tokenInfo !== null && typeof tokenInfo === "object") {
+                    const token = new Token(
+                        record.tokenId,
+                        record.appId,
+                        Boolean(record.isUser),
+                        tokenInfo
+                    );
 
-                if (token.isExpiredByDays(this.expireDays)) {
+                    if (token.isExpiredByDays(this.expireDays)) {
+                        rm.push(record.tokenId);
+                    }
+                }
+                else {
                     rm.push(record.tokenId);
                 }
             }
