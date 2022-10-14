@@ -103,19 +103,24 @@ class TokenManager {
 
         const id = format(ANONYMOUS_ID_FORMAT,appId);
 
-        // Try loading an existing anonymous token.
+        // Try loading an existing anonymous token. Attempt refresh if expired.
         const { appId: appIdVerify, isUser, tokenInfo } = this.get(id);
         if (tokenInfo && appId == appIdVerify) {
-            const token = new Token(id,appId,isUser,tokenInfo);
+            try {
+                const token = new Token(id,appId,isUser,tokenInfo);
+                if (token.isExpired()) {
+                    await this.refreshToken(token);
+                }
 
-            if (token.isExpired()) {
-                const success = await token.refresh(this);
-                if (!success) {
-                    throw new TokenError("Token is expired and cannot be refreshed");
+                return token;
+
+            } catch (ex) {
+                // If there was no refresh token, continue below to re-acquire a
+                // new token.
+                if (!(ex instanceof TokenError)) {
+                    throw ex;
                 }
             }
-
-            return token;
         }
 
         // Aquire anonymous token using configured anonymous user for
