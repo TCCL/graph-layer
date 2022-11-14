@@ -23,7 +23,8 @@ const FORWARD_HEADERS = [
     "accept-encoding",
     "accept-language",
     "cache-control",
-    "pragma"
+    "pragma",
+    "prefer"
 ];
 
 function makeRequestUri(req) {
