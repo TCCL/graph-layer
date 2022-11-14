@@ -15,7 +15,7 @@
   "author": "Tulsa City-County Library",
   "license": "MIT",
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=16.0.0"
   },
   "bin": {
     "graph-layer": "./graph-layer.js"
