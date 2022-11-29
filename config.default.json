@@ -11,11 +11,22 @@
 
             /**
              * Microsoft Graph API credentials.
+             *
+             *  tenantId: Determines which tenant is authorizing. This should
+             *  be your tenant GUID/domain for a specific organization or one
+             *  of:
+             *   - common: Work/school accounts or personal Microsoft accounts
+             *   - organizations: Work/school accounts only
+             *   - consumers: Personal Microsoft accounts only
+             *
+             *  cloudUrl: The base URL for the authentication endpoint. This
+             *  will default to https://login.microsoftonline.com if not
+             *  specified.
              */
-            "client_id": "",
-            "client_secret": "",
-            "tenant_id": "",
-            "cloud_id": "https://login.microsoftonline.com",
+            "clientId": "",
+            "clientSecret": "",
+            "tenantId": "",
+            "cloudUrl": "https://login.microsoftonline.com",
 
             /**
              * The scopes to request for access tokens associated with user
@@ -25,7 +36,21 @@
                 "user.read"
             ],
 
-            "redirectUri": "http://localhost:8000/callback"
+            // The redirect URI used during sign in.
+            "redirectUri": "http://localhost:8000/callback",
+
+            // The post logout redirect URI used during sign out.
+            "postLogoutRedirectUri": "http://localhost:8000/",
+
+            /**
+             * The login credentials for a user account to use as the
+             * "anonymous" user. Leave NULL or with empty property values to
+             * disable the anonymous user for this application.
+             */
+            "anonymousUser": {
+                "username": "",
+                "password": ""
+            }
         }
     ],
 
@@ -38,9 +63,19 @@
         "port": 8000,
 
         /**
-         * Cookie that contains the graph layer session ID.
+         * Cookie that contains the graph layer session ID that is used when
+         * making a graph-layer proxy request.
          */
         "cookie": "GRAPH_LAYER_SESSID",
+
+        /**
+         * Name of the HTTP request header identifies an anonymous graph-layer
+         * proxy request. The header value is the ID of the application to use
+         * for the anonymous request. The indicated application must have an
+         * anonymous user configured for this to work. Set this value to empty
+         * to disable anonymous access.
+         */
+        "anonymousHeader": null,
 
         /**
          * The base path for all Microsoft graph URIs that are proxied via the proxy

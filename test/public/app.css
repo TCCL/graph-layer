@@ -52,3 +52,30 @@ td, th {
 .index > .links > .links-section:last-child {
   border-bottom: none;
 }
+
+.callout {
+  font-size: 1.1em;
+  padding: 1.5em;
+  background-color: rgba(250,50,50,0.25);
+  font-weight: bold;
+}
+.callout:empty {
+  display: none;
+}
+
+.columns {
+  display: flex;
+  gap: 1.5em;
+}
+
+.columns > .column {
+  flex: 1 0;
+}
+
+.output-view {
+  resize: none;
+  width: 100%;
+  font-size: 1.2em;
+  font-family: monospace;
+  line-height: 1.123em;
+}

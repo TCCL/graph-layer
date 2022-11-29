@@ -10,7 +10,7 @@ const { unixtime } = require("./helpers");
 
 class Logger {
     constructor(services) {
-        this.storage = services.config.getStorage();
+        this.storage = services.getStorage();
         this.proxyLogInsert = null;
 
         // Apply options from config.
@@ -83,6 +83,12 @@ class Logger {
     stop() {
         clearInterval(this.cleanupInterval);
         this.proxyLogInsert = null;
+    }
+
+    errorLog(error,...args) {
+        const dt = new Date();
+        const errorMessage = format(error,...args);
+        console.error("[graph-layer/error] [%s] %s",dt.toISOString(),errorMessage);
     }
 
     proxyLog(dt,info) {

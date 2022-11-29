@@ -8,9 +8,10 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const { Minimatch } = require("minimatch");
 const { ResponseType } = require("@microsoft/microsoft-graph-client");
+const querystring = require("querystring");
 
 const { Client } = require("../client");
-const { unixtime, handleError } = require("../helpers");
+const { unixtime, isFatalError } = require("../helpers");
 const { TokenError } = require("../token/error");
 
 const HEADER_BLACKLIST = [
@@ -22,8 +23,18 @@ const FORWARD_HEADERS = [
     "accept-encoding",
     "accept-language",
     "cache-control",
-    "pragma"
+    "pragma",
+    "prefer"
 ];
+
+function makeRequestUri(req) {
+    let uri = req.params[0];
+    const qs = querystring.stringify(req.query);
+    if (qs) {
+        uri += "?" + qs;
+    }
+    return uri;
+}
 
 function createList(list) {
     if (!Array.isArray(list)) {
@@ -76,24 +87,27 @@ class ProxyEndpoint {
     constructor(services,_options) {
         const options = _options || {};
 
-        this.logger = services.logger;
-        this.tokenManager = services.manager;
-        this.config = services.config.get("proxyEndpoint");
+        this.logger = services.getLogger();
+        this.tokenManager = services.getTokenManager();
+        this.config = services.getConfig().get("proxyEndpoint");
         this.server = null;
 
         const [
             cookieName,
+            anonymousHeaderName,
             basePath,
             whitelist,
             blacklist
         ] = this.config.get(
             "cookie",
+            "anonymousHeader",
             "basePath",
             "whitelist",
             "blacklist"
         );
 
         this.cookieName = cookieName;
+        this.anonymousHeaderName = anonymousHeaderName;
         this.basePath = basePath;
         this.whitelist = createList(whitelist);
         this.blacklist = createList(blacklist);
@@ -109,6 +123,9 @@ class ProxyEndpoint {
         }
     }
 
+    /**
+     * Starts the proxy server.
+     */
     start() {
         if (this.server) {
             return;
@@ -118,6 +135,9 @@ class ProxyEndpoint {
         this.server = this.app.listen(port,host);
     }
 
+    /**
+     * Closes and stops the proxy server.
+     */
     stop() {
         if (!this.server) {
             return;
@@ -127,13 +147,20 @@ class ProxyEndpoint {
         this.server = null;
     }
 
+    /**
+     * Handler for requests to the proxy handler.
+     *
+     * @param {object} req
+     * @param {object} res
+     * @param {function} next
+     */
     proxy(req,res,next) {
         const log = {
             client: req.ip,
             start: unixtime(),
             end: null,
             requestMethod: req.method,
-            requestUri: req.params[0],
+            requestUri: makeRequestUri(req),
             status: 0,
             responseSize: 0,
             responseTime: 0
@@ -149,13 +176,6 @@ class ProxyEndpoint {
             this.logger.proxyLog(dt,log);
         });
 
-        // Pull session ID (i.e. token ID) from cookies.
-        const sessionId = req.cookies[this.cookieName];
-        if (!sessionId) {
-            unauthorized(req,res,next);
-            return;
-        }
-
         // Exclude endpoints that are blacklisted or not whitelisted.
         const testfn = listMatches(req.params[0]);
         const disallow = this.blacklist.some(testfn);
@@ -167,8 +187,31 @@ class ProxyEndpoint {
             return;
         }
 
-        // Do proxy.
-        this.graphAPI(sessionId,req).then((graphResponse) => {
+        let promise;
+
+        // Figure out which proxy method to use: anonymous or session-based.
+        if (this.anonymousHeaderName && req.get(this.anonymousHeaderName)) {
+            // Pull application ID from cookies.
+            const anonAppId = req.get(this.anonymousHeaderName);
+            promise = this.proxyRequestAnonymous(anonAppId,req);
+        }
+        else if (this.cookieName in req.cookies) {
+            // Pull session ID (i.e. token ID) from cookies.
+            const sessionId = req.cookies[this.cookieName];
+            promise = this.proxyRequestWithSession(sessionId,req);
+        }
+        else {
+            unauthorized(req,res,next);
+            return;
+        }
+
+        // Do proxy of upstream request.
+        promise.then((graphResponse) => {
+            if (!graphResponse) {
+                unauthorized(req,res,next);
+                return;
+            }
+
             res.status(graphResponse.status);
 
             // Transfer headers.
@@ -191,14 +234,35 @@ class ProxyEndpoint {
             }
             else {
                 serverError(req,res,next);
-                handleError(err);
             }
+            this.handleError(err,"Error occurred during Graph API proxy");
         });
     }
 
-    async graphAPI(sessionId,downReq) {
-        // Load token by session ID to load client instance.
+    async proxyRequestWithSession(sessionId,downReq) {
+        if (!sessionId) {
+            return null;
+        }
+
+        // Load token by session ID.
         const token = await this.tokenManager.getToken(sessionId);
+
+        return this.proxyRequest(token,downReq);
+    }
+
+    async proxyRequestAnonymous(appId,downReq) {
+        if (!appId) {
+            return null;
+        }
+
+        // Load token by application ID.
+        const token = await this.tokenManager.getAnonymousToken(appId);
+
+        return this.proxyRequest(token,downReq);
+    }
+
+    async proxyRequest(token,downReq) {
+        // Create client using indicated token.
         const client = new Client(token);
 
         // Prepare upstream request.
@@ -220,7 +284,7 @@ class ProxyEndpoint {
             return await upReq.get();
         }
 
-        if (method != "DELETE") {
+        if (downReq.method != "DELETE") {
             // Forward the Content-Type header if provided.
             const requestContentType = downReq.get("Content-Type");
             if (requestContentType) {
@@ -232,23 +296,34 @@ class ProxyEndpoint {
             upReq.option("body",downReq);
         }
 
-        if (method == "POST") {
+        if (downReq.method == "POST") {
             return await upReq.post();
         }
 
-        if (method == "PUT") {
+        if (downReq.method == "PUT") {
             return await upReq.put();
         }
 
-        if (method == "PATCH") {
+        if (downReq.method == "PATCH") {
             return await upReq.patch();
         }
 
-        if (method == "DELETE") {
+        if (downReq.method == "DELETE") {
             return await upReq.delete();
         }
 
         throw new ErrorF("Graph API proxy: method '%s' is not supported");
+    }
+
+    handleError(error,context) {
+        if (context) {
+            this.logger.errorLog(context);
+        }
+        this.logger.errorLog(error);
+
+        if (isFatalError(error)) {
+            process.exit(1);
+        }
     }
 }
 

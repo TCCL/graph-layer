@@ -22,11 +22,14 @@ class Testbed {
         this.config = new Config();
         this.server = null;
 
+        const stdRoutes = require("./standard-routes");
+
         if (!this.options.plugins) {
             this.options.plugins = [];
         }
-        this.options.plugins.unshift(require("./standard-routes").token);
-        this.options.plugins.unshift(require("./standard-routes").standard);
+        this.options.plugins.unshift(stdRoutes.proxy);
+        this.options.plugins.unshift(stdRoutes.token);
+        this.options.plugins.unshift(stdRoutes.standard);
 
         this.links = [];
     }
@@ -39,7 +42,7 @@ class Testbed {
         };
 
         const server = new Server(this.config,serverOptions);
-        const app = server.getApp();
+        const app = server.getWebApp();
 
         // Include static files and routes from plugins. This will at least
         // integrate the standard routes providing the core graph-layer tests.
@@ -81,6 +84,18 @@ class Testbed {
 
                 if (links.length > 0) {
                     this.links.push(linksEntry);
+                }
+            }
+
+            if (plugin.postRoutes) {
+                app.use(express.json());
+                app.use(express.urlencoded({ extended:true }));
+
+                for (let i = 0;i < plugin.postRoutes.length;++i) {
+                    const [ route, handler ] = plugin.postRoutes[i];
+                    const service = new TestbedService(this,handler,plugin);
+
+                    app.post(route,service.makeHandlerFunc());
                 }
             }
         });
@@ -133,10 +148,17 @@ class TestbedService {
         };
     }
 
+    getApp() {
+        const config = this.testbed.config;
+        const app = config.get("appsIndexed")[0]; // use first
+
+        return app;
+    }
+
     connect() {
         const config = this.testbed.config;
 
-        const app = config.get("apps")[0]; // use first
+        const app = config.get("appsIndexed")[0]; // use first
         const [ port, host ] = config.get("tokenEndpoint").get("port","host");
 
         const sock = new net.Socket();

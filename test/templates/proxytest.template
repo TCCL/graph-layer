@@ -1,0 +1,22 @@
+<p>Proxy Endpoint Response:</p>
+
+<p id="graph-layer-test-callout" class="callout"></p>
+
+<div class="columns">
+  <div class="column">
+    <p>Request</p>
+    <textarea id="graph-layer-test-proxy-request-console" class="output-view" readonly="1" rows="15"></textarea>
+  </div>
+
+  <div class="column">
+    <p>Response</p>
+    <textarea id="graph-layer-test-proxy-response-console" class="output-view" readonly="1" rows="15"></textarea>
+  </div>
+</div>
+
+<div>
+  <button id="graph-layer-test-proxy-button">Make Request</button>
+  <button id="graph-layer-test-reset-button">Reset</button>
+</div>
+
+<script id="graph-layer-test-proxy-info" type="application/json"><%- JSON.stringify(proxyInfo) -%></script>
