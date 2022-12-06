@@ -58,6 +58,30 @@ class JsonMessage {
     }
 }
 
+class Mutex {
+    constructor() {
+        this.result = null;
+        this.count = 0;
+    }
+
+    enter(callback) {
+        this.count += 1;
+
+        if (!this.result) {
+            this.result = callback();
+        }
+
+        return this.result;
+    }
+
+    leave() {
+        this.count -= 1;
+        if (this.count <= 0) {
+            this.result = null;
+        }
+    }
+}
+
 function unixtime(datetime) {
     const dt = datetime || new Date();
     return Math.floor(dt.getTime() / 1000);
@@ -81,6 +105,7 @@ function handleError(err) {
 
 module.exports = {
     JsonMessage,
+    Mutex,
     unixtime,
     isFatalError,
     handleError
