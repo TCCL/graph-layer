@@ -8,6 +8,7 @@ const { format } = require("util");
 
 const { Token } = require("./token");
 const { TokenError } = require("./error");
+const { Mutex } = require("../helpers");
 
 const ANONYMOUS_ID_FORMAT = '__anonymous-%s__';
 
@@ -20,6 +21,7 @@ class TokenManager {
         this.appManager = services.getAppManager();
         this.storage = services.getStorage();
         this.server = null;
+        this.mutex = new Mutex();
 
         const tokenEndpointConfig = this.config.get("tokenEndpoint");
         this.expireDays = tokenEndpointConfig.get("expireDays");
@@ -126,11 +128,16 @@ class TokenManager {
         // Aquire anonymous token using configured anonymous user for
         // application.
 
-        const { username, password } = app.anonymousUser;
-        const newTokenInfo = await app.acquireTokenByUsernamePassword(username,password);
-        this.set(id,appId,false,newTokenInfo);
+        const token = await this.mutex.enter(async () => {
+            const { username, password } = app.anonymousUser;
+            const newTokenInfo = await app.acquireTokenByUsernamePassword(username,password);
+            this.set(id,appId,false,newTokenInfo);
+            return new Token(id,appId,false,newTokenInfo);
+        });
 
-        return new Token(id,appId,false,newTokenInfo);
+        this.mutex.leave();
+
+        return token;
     }
 
     /**
