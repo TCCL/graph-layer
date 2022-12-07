@@ -131,7 +131,7 @@ class TokenManager {
         const token = await this.mutex.enter(async () => {
             const { username, password } = app.anonymousUser;
             const newTokenInfo = await app.acquireTokenByUsernamePassword(username,password);
-            this.set(id,appId,false,newTokenInfo);
+            this.update(id,appId,false,newTokenInfo);
             return new Token(id,appId,false,newTokenInfo);
         });
 
