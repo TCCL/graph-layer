@@ -77,6 +77,7 @@ class Mutex {
     leave() {
         this.count -= 1;
         if (this.count <= 0) {
+            this.count = 0;
             this.result = null;
         }
     }
