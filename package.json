@@ -1,6 +1,6 @@
 {
   "name": "@tccl/graph-layer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "API integration layer for Microsoft Graph API",
   "main": "src/main.js",
   "scripts": {
