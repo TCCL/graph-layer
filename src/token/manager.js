@@ -21,7 +21,10 @@ class TokenManager {
         this.appManager = services.getAppManager();
         this.storage = services.getStorage();
         this.server = null;
-        this.mutex = new Mutex();
+        this.mutexes = {
+            acquire: new Map(),
+            refresh: new Map()
+        };
 
         const tokenEndpointConfig = this.config.get("tokenEndpoint");
         this.expireDays = tokenEndpointConfig.get("expireDays");
@@ -108,15 +111,31 @@ class TokenManager {
         // Try loading an existing anonymous token. Attempt refresh if expired.
         const { appId: appIdVerify, isUser, tokenInfo } = this.get(id);
         if (tokenInfo && appId == appIdVerify) {
+            let mutex = null;
+
             try {
-                const token = new Token(id,appId,isUser,tokenInfo);
-                if (token.isExpired()) {
-                    await this.refreshToken(token);
+                let token = new Token(id,appId,isUser,tokenInfo);
+                if (!token.isExpired()) {
+                    return token;
                 }
+
+                // Attempt a refresh. (The token may not have a refresh token
+                // property.) Ensure that only one request attempts the acquire.
+                mutex = this._getMutex("refresh",appId);
+                token = await mutex.enter(async () => {
+                    await this.refreshToken(token);
+                    return token;
+                });
+
+                mutex.leave();
 
                 return token;
 
             } catch (ex) {
+                if (mutex) {
+                    mutex.leave();
+                }
+
                 // If there was no refresh token, continue below to re-acquire a
                 // new token.
                 if (!(ex instanceof TokenError)) {
@@ -126,16 +145,17 @@ class TokenManager {
         }
 
         // Aquire anonymous token using configured anonymous user for
-        // application.
+        // application. Ensure only one request attempts the acquire.
 
-        const token = await this.mutex.enter(async () => {
+        const mutex = this._getMutex("acquire",appId);
+        const token = await mutex.enter(async () => {
             const { username, password } = app.anonymousUser;
             const newTokenInfo = await app.acquireTokenByUsernamePassword(username,password);
-            this.set(id,appId,false,newTokenInfo);
+            this.update(id,appId,false,newTokenInfo);
             return new Token(id,appId,false,newTokenInfo);
         });
 
-        this.mutex.leave();
+        mutex.leave();
 
         return token;
     }
@@ -254,6 +274,18 @@ class TokenManager {
         });
 
         t();
+    }
+
+    _getMutex(type,appId) {
+        const bucket = this.mutexes[type];
+
+        let mutex = bucket.get(appId);
+        if (!mutex) {
+            mutex = new Mutex();
+            bucket.set(appId,mutex);
+        }
+
+        return mutex;
     }
 }
 
